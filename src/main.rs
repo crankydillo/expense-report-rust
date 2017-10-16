@@ -1,20 +1,12 @@
 extern crate postgres;
 extern crate chrono;
 
-mod AccountDao;
-mod TransactionDao;
+mod account_dao;
+mod transaction_dao;
 
 //use AccountDao::AccountDao;
 use postgres::{Connection, TlsMode};
-
-use chrono::*;
-
-struct Transaction {
-    guid: String,
-    num: String,
-    postDate: Option<NaiveDateTime>,
-    description: String
-}
+use transaction_dao::TransactionDao;
 
 fn main() -> () {
 
@@ -32,7 +24,7 @@ fn main() -> () {
 
     let conn = Connection::connect(conn_str.to_string(), TlsMode::None).unwrap();
 
-    let dao = TransactionDao::TransactionDao { i: 1 };
+    let dao = TransactionDao { i: 1 };
     let recs = dao.list(&conn, "", "", "");
     recs.iter().take(10).for_each(|r| println!("{:?}", r));
     println!("{}", recs.len());
