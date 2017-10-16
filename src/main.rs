@@ -37,24 +37,5 @@ fn main() -> () {
     recs.iter().take(10).for_each(|r| println!("{:?}", r));
     println!("{}", recs.len());
 
-    /*
-    let dao = AccountDao::AccountDao { i: 1 };
-    let accounts = dao.list(&conn);
-    accounts.iter().for_each(|a| println!("{}", a.name));
-    println!("{}", accounts.len());
-    */
-
     conn.finish();
-}
-
-fn list_transactions(conn: &Connection) {
-    for row in &conn.query("SELECT * from transactions", &[]).unwrap() {
-        let t = Transaction {
-            guid: row.get("guid"),
-            num: row.get("num"),
-            postDate: row.get("post_date"),
-            description: row.get("description")
-        };
-        println!("Found transaction {:?} - {}", t.postDate, t.description);
-    }
 }
