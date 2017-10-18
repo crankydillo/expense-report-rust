@@ -3,6 +3,7 @@ use postgres::Connection;
 use std::collections::HashMap;
 
 #[derive(Debug)]
+#[derive(Serialize)]
 pub struct Transaction {
     pub guid: String,
     num: String,
@@ -12,6 +13,7 @@ pub struct Transaction {
 }
 
 #[derive(Debug)]
+#[derive(Serialize)]
 pub struct Split {
     pub account_guid: String,
     pub transaction_guid: String,
