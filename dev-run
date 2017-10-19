@@ -1,0 +1,2 @@
+#!/bin/sh
+watchexec -e rs --restart -- cargo run $1 $2

@@ -1,5 +1,6 @@
 use chrono::*;
 use postgres::Connection;
+use postgres::stmt::Statement;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -22,8 +23,6 @@ pub struct Split {
 }
 
 pub struct TransactionDao {
-    pub i: i32
-    //pub conn: &'a Connection
 }
 
 impl TransactionDao {
@@ -31,23 +30,18 @@ impl TransactionDao {
     pub fn list(
         &self,
         conn: &Connection,
-        since: &str,
-        until: &str,
+        since: &NaiveDateTime,
+        until: &NaiveDateTime,
         like_description: &str
     ) -> Vec<Transaction> {
 
-        let mut where_clause = String::from("where post_date >= '") +
-            &self.date_fmt(since) + &String::from("' and post_date < '") +
-            &self.date_fmt(until) + &String::from("'");
+        let query = 
+            "select guid, num, post_date, description from transactions \
+            where post_date >= $1 \
+            and post_date < $2 \
+            order by post_date desc";
 
-        where_clause = String::from("");
-
-        let query = String::from(
-            "SELECT guid, num, post_date, description from transactions ") +
-            &where_clause + &String::from("order by post_date desc");
-
-
-        let trans: Vec<Transaction> = conn.query(&query, &[]).unwrap().iter().map( |row| {
+        let trans: Vec<Transaction> = conn.query(&query, &[since, until]).unwrap().iter().map( |row| {
             Transaction {
                 guid: row.get("guid"),
                 num: row.get("num"),
