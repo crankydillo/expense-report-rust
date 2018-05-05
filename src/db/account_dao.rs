@@ -2,20 +2,20 @@ use postgres::Connection;
 use std::collections::HashMap;
 
 #[derive(Debug)]
+#[derive(Serialize)]
 pub struct Account {
     pub guid: String,
     pub parent: Option<Box<Account>>,
     pub name: String
 }
 
-pub struct AccountDao {
-    pub i: i32
-    //pub conn: &'a Connection
+pub struct AccountDao<'a> {
+    pub conn: &'a Connection
 }
 
-impl AccountDao {
+impl<'a> AccountDao<'a> {
 
-    pub fn list(&self, conn: &Connection) -> Vec<Account> {
+    pub fn list(&self) -> Vec<Account> {
 
         struct DbAccount {
             guid: String,
@@ -23,7 +23,7 @@ impl AccountDao {
             name: String
         }
 
-        let db_accounts: Vec<DbAccount> = conn.query("SELECT * from accounts", &[]).unwrap().iter().map( |row| {
+        let db_accounts: Vec<DbAccount> = self.conn.query("SELECT * from accounts", &[]).unwrap().iter().map( |row| {
             DbAccount {
                 guid: row.get("guid"),
                 parent_guid: row.get("parent_guid"),

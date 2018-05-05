@@ -22,14 +22,15 @@ pub struct Split {
     pub memo: String
 }
 
-pub struct TransactionDao {
+pub struct TransactionDao<'a> {
+    pub conn: &'a Connection
 }
 
-impl TransactionDao {
+impl<'a> TransactionDao<'a> {
 
     pub fn list(
         &self,
-        conn: &Connection,
+        //conn: &Connection,
         since: &NaiveDateTime,
         until: &NaiveDateTime,
         like_description: &str
@@ -41,7 +42,7 @@ impl TransactionDao {
             and post_date < $2 \
             order by post_date desc";
 
-        let trans: Vec<Transaction> = conn.query(&query, &[since, until]).unwrap().iter().map( |row| {
+        let trans: Vec<Transaction> = self.conn.query(&query, &[since, until]).unwrap().iter().map( |row| {
             Transaction {
                 guid: row.get("guid"),
                 num: row.get("num"),
@@ -60,7 +61,7 @@ impl TransactionDao {
         let split_query = String::from("select tx_guid, account_guid, memo, value_num from splits where tx_guid in (") + 
             &trans_id_query_part + &String::from(")");
 
-        let splits: Vec<Split> = conn.query(&split_query, &[]).unwrap().iter().map( |row| {
+        let splits: Vec<Split> = self.conn.query(&split_query, &[]).unwrap().iter().map( |row| {
             Split {
                 account_guid: row.get("account_guid"),
                 transaction_guid: row.get("tx_guid"),
