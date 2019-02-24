@@ -1,5 +1,4 @@
 // Copied from https://rocket.rs/guide/state/
-
 use std::ops::Deref;
 
 use postgres::Connection;

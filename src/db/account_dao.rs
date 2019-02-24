@@ -9,6 +9,23 @@ pub struct Account {
     pub name: String
 }
 
+impl Account {
+    pub fn is_expense(&self) -> bool {
+        match self.parent {
+            None => false,
+            Some(ref p) if p.name.to_lowercase() == "expenses" => true,
+            Some(ref p) => p.is_expense()
+        }
+    } 
+
+    pub fn qualified_name(&self) -> String {
+        match self.parent {
+            None => self.name.to_string(),
+            Some(ref p) => format!("{}.{}", p.name, self.name)
+        }
+    }
+}
+
 pub struct AccountDao<'a> {
     pub conn: &'a Connection
 }
@@ -51,13 +68,5 @@ impl<'a> AccountDao<'a> {
 
         db_accounts.iter().map(|da| to_acct(da, &by_guid)).collect()
     }
-
-    fn is_expense(&self, acct: &Account) -> bool {
-        match acct.parent {
-            None => false,
-            Some(ref p) if p.name.to_lowercase() == "expenses" => true,
-            Some(ref p) => self.is_expense(&p)
-        }
-    } 
 
 }

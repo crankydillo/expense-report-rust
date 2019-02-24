@@ -1,10 +1,10 @@
 #![feature(plugin)]
-#![plugin(rocket_codegen)]
+//#![plugin(rocket_codegen)]
 #![allow(warnings)]
+#![feature(proc_macro_hygiene, decl_macro)]
 
 extern crate chrono;
-extern crate rocket;
-extern crate rocket_contrib;
+extern crate itertools;
 extern crate serde;
 extern crate serde_json;
 extern crate postgres;
@@ -13,6 +13,8 @@ extern crate r2d2_diesel;
 extern crate r2d2_postgres;
 extern crate r2d2;
 #[macro_use] extern crate serde_derive;
+#[macro_use] extern crate rocket;
+extern crate rocket_contrib;
 
 mod db;
 use db::{
@@ -50,8 +52,11 @@ fn main() -> () {
     let pool = r2d2::Pool::new(manager).expect("db pool");
 
     rocket::ignite()
-        .mount("/", routes![account::list, transaction::list])
-        .manage(conn_str)
+        .mount("/", routes![
+               account::list,
+               transaction::list,
+               transaction::monthly_totals,
+        ]).manage(conn_str)
         .manage(pool)
         .launch();
 }

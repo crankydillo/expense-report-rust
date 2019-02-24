@@ -1,5 +1,6 @@
 // Copied from https://rocket.rs/guide/state/
 
+/*
 use std::ops::Deref;
 use diesel::pg::PgConnection;
 use rocket::http::Status;
@@ -36,3 +37,4 @@ impl Deref for DbConn {
         &self.0
     }
 }
+*/

@@ -7,10 +7,10 @@ use std::collections::HashMap;
 #[derive(Serialize)]
 pub struct Transaction {
     pub guid: String,
-    num: String,
-    post_date: Option<NaiveDateTime>,
-    description: String,
-    splits: Vec<Split>
+    pub num: String,
+    pub post_date: NaiveDateTime,
+    pub description: String,
+    pub splits: Vec<Split>
 }
 
 #[derive(Debug)]
@@ -30,19 +30,20 @@ impl<'a> TransactionDao<'a> {
 
     pub fn list(
         &self,
-        //conn: &Connection,
-        since: &NaiveDateTime,
-        until: &NaiveDateTime,
-        like_description: &str
+        since: &NaiveDate,
+        until: &NaiveDate,
     ) -> Vec<Transaction> {
 
+        let since_dt = &since.and_hms(0, 0, 0);
+        let until_dt = &until.and_hms(0, 0, 0);
+ 
         let query = 
             "select guid, num, post_date, description from transactions \
             where post_date >= $1 \
             and post_date < $2 \
             order by post_date desc";
 
-        let trans: Vec<Transaction> = self.conn.query(&query, &[since, until]).unwrap().iter().map( |row| {
+        let trans = self.conn.query(&query, &[since_dt, until_dt]).unwrap().iter().map( |row| {
             Transaction {
                 guid: row.get("guid"),
                 num: row.get("num"),
@@ -50,13 +51,13 @@ impl<'a> TransactionDao<'a> {
                 description: row.get("description"),
                 splits: Vec::new()
             }
-        }).collect();
+        }).collect::<Vec<_>>();
 
-        let trans_ids: Vec<String> = trans.iter().map(|t| t.guid.clone()).collect();
+        let trans_ids = trans.iter().map(|t| t.guid.clone()).collect::<Vec<_>>();
 
         let trans_id_query_part = trans_ids.iter().map( |id| {
             String::from("'") + &id + &String::from("'")
-        }).collect::<Vec<String>>().join(",");
+        }).collect::<Vec<_>>().join(",");
 
         let split_query = String::from("select tx_guid, account_guid, memo, value_num from splits where tx_guid in (") + 
             &trans_id_query_part + &String::from(")");
