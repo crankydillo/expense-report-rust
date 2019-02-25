@@ -34,6 +34,8 @@ use postgres::{Connection, TlsMode};
 use pg_conn::PgConn;
 use r2d2_postgres::PostgresConnectionManager;
 
+use rocket_contrib::serve::StaticFiles;
+
 fn main() -> () {
 
     let args: Vec<_> = std::env::args().collect();
@@ -52,11 +54,13 @@ fn main() -> () {
     let pool = r2d2::Pool::new(manager).expect("db pool");
 
     rocket::ignite()
-        .mount("/", routes![
+        .mount("/res/", routes![
                account::list,
                transaction::list,
                transaction::monthly_totals,
-        ]).manage(conn_str)
+        ])
+        .mount("/", StaticFiles::from("static"))
+        .manage(conn_str)
         .manage(pool)
         .launch();
 }

@@ -1,0 +1,60 @@
+<script type="text/javascript">
+    $(document).ready(function () {
+        var layout = $('#huh').layout({ applyDefaultStyles: true });
+        layout.close('east');
+    });
+</script>
+
+<div id='huh' style='height:100%'>
+  <div class="ui-layout-center">
+    <div class="exp-totals">
+      <table>
+        <tr>
+          <th>No.</th>
+          <th align='left'>Account</th>
+          <th ng-repeat="s in monthlyBreakdown.summaries"
+            ng-class="{selectedLabel: $index==selectedCol}">
+            <a href='{{"#/graph/" + s.year + "/" + s.month}}'>{{ s.month }}</a>
+          </th>
+          <th><a href='#/graph/total'>Total</a></th>
+        </tr>
+        <tr ng-repeat="acctSum in monthlyBreakdown.acctSums | filter:CatsFilter">
+          <td ng-class="{selectedLine: $index==selectedRow}" align="right">{{ $index + 1 }}</td>
+          <td ng-class="{selectedLabel: $index==selectedRow, selectedLine: $index==selectedRow}">
+            <a href='#/graph/expenses/{{acctSum.name}}'>{{ trimmedName(acctSum.name) }}</a>
+          </td>
+          <td class="money" ng-repeat="mt in acctSum.monthlyTotals"
+            ng-class="{selected: $index==selectedCol && $parent.$index==selectedRow, selectedLine: $parent.$index==selectedRow, selectedCol: $index==selectedCol}"
+            ng-click="selected($parent.$index, $index); loadSplits(acctSum.name, mt)">
+            <span class='clickable' ng-click="selected($parent.$index, $index);
+              loadSplits(acctSum.name, mt)">{{ fmtMoney(mt.total) | currency }}</span>
+          </td>
+          <td class='money' ng-class="{selectedLine: $index==selectedRow}">{{ fmtMoney(acctSum.total) | currency }}</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>Total</td>
+          <td ng-class="{selectedLabel: $index==selectedCol}"
+            align="right" ng-repeat="s in monthlyBreakdown.summaries">{{
+            fmtMoney(s.total) | currency }}</td>
+          <td align="right">{{ fmtMoney(monthlyBreakdown.totalSpent) | currency }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="ui-layout-east">
+    <div class='side-links'>
+      <span class='side-link' ng-click='openHelp()'>Help</span>
+      <hr/>
+      <div class='side-link'>Filter:  <input style='width:125px' ng-model='CatsFilter'/></div>
+      <hr/>
+      <div class='side-link'>
+        <a target='_self' href='/res/monthly-totals?format=csv&months=3'>CSV</a>
+      </div>
+      <div ng-click='hi()'>Hi</div>
+    </div>
+
+  </div>
+</div>
+

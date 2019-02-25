@@ -1,0 +1,125 @@
+html, body {
+  font-family: 'Open Sans', Helvetica, Arial, sans-serif;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.money {
+  text-align: right;
+}
+
+.side-links {
+  width: 100%;
+  text-align: center;
+}
+
+.side-link {
+  cursor: pointer;
+}
+
+a, a:visited, a:hover, a:active {
+  text-decoration: none !important;
+  color: black;
+  cursor: pointer;
+}
+
+#top-component {
+  padding-top: 15px;
+}
+
+.center {
+  width: 50%;
+  margin: 0 auto;
+  padding-top: 75px;
+  text-align: center;
+  line-height: 70px;
+  font-size: 50px;
+}
+
+.expenses table {
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.expenses td {
+  border: 1px solid black;
+  padding: 5px 18px 3px 12px;
+}
+
+.expenses th {
+  border: 1px solid black;
+  padding: 5px 18px 3px 12px;
+}
+
+#exp-splits {
+  display: none;
+}
+
+.exp-splits table {
+  width: 90%;
+  max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#splits-intro {
+  padding: 5px 15px;
+  width: 100%;
+  text-align: center;
+}
+
+.expenses td.selectedLine {
+  background-color: lightyellow;
+}
+
+.expenses td.selectedLabel {
+  background-color: lightyellow;
+}
+
+.expenses td.selectedCol {
+  background-color: lightyellow;
+}
+
+.expenses th.selectedLabel {
+  background-color: lightyellow;
+}
+
+.expenses td.selected {
+  background-color: #99FF99;
+}
+
+tr:nth-child(odd) { background-color: #eee; }
+tr:nth-child(1) { background-color: #bbb; }
+tr:nth-child(even) { background-color: #fff; }
+
+#top-component {
+  bottom: 30%;
+  margin-bottom: 5px;
+  min-height: 5em;
+}
+
+#top-component {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#my-divider {
+  bottom: 30%;
+  height: 10px;
+}
+
+#bottom-component {
+  height: 30%;
+  min-height: 10em;
+}
+
+.split-pane-divider hr {
+  height: 5px;
+}

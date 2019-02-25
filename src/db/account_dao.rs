@@ -21,7 +21,7 @@ impl Account {
     pub fn qualified_name(&self) -> String {
         match self.parent {
             None => self.name.to_string(),
-            Some(ref p) => format!("{}.{}", p.name, self.name)
+            Some(ref p) => format!("{}:{}", p.qualified_name(), self.name)
         }
     }
 }

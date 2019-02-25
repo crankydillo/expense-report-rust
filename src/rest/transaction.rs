@@ -73,7 +73,7 @@ pub fn monthly_totals<'a>(
 
     months.sort_by(|a, b| a.total.cmp(&b.total));
 
-    let all_months = months.iter().flat_map(|m| &m.monthly_totals);
+    let all_months = months.iter().flat_map(|m| &m.monthlyTotals);
 
     let grouped = group_by(all_months.collect::<Vec<_>>(), |m| m.month.clone());
 
@@ -173,9 +173,9 @@ fn fill_empty_months(
         (0..num_months).for_each(|_j| {
             let j = _j as usize;
             let month_str = format_nd(desired_months[j]);
-            let exp_month = exp.monthly_totals.get(j).map(|mt| mt.clone());
+            let exp_month = exp.monthlyTotals.get(j).map(|mt| mt.clone());
             if (exp_month.is_none() || month_str != exp_month.unwrap().month) {
-                exp.monthly_totals.insert(j, MonthTotal {
+                exp.monthlyTotals.insert(j, MonthTotal {
                     month: month_str,
                     total: 0
                 });
@@ -214,7 +214,7 @@ struct MonthTotal {
 struct MonthlyExpenseGroup {
     name: String,
     total: i64,
-    monthly_totals: Vec<MonthTotal>,
+    monthlyTotals: Vec<MonthTotal>,
 }
 
 fn expenses_by_month(
@@ -262,7 +262,7 @@ fn expenses_by_month(
         MonthlyExpenseGroup {
             name: name.to_string(),
             total: monthly_totals.iter().map(|mt| mt.total).sum(),
-            monthly_totals: monthly_totals
+            monthlyTotals: monthly_totals
         }
     });
 
@@ -276,7 +276,7 @@ fn format_ndt(d: NaiveDateTime) -> String {
 fn format_nd(d: NaiveDate) -> String {
     let year =  d.year();
     let month = d.month();
-    format!("{} - {:02}", year, month)
+    format!("{}-{:02}", year, month)
 }
 
 fn group_by<T, K : Eq + Hash>(items: Vec<T>, to_key: fn(&T) -> K) -> HashMap<K, Vec<T>> {

@@ -1,0 +1,78 @@
+<html ng-app="expensesApp">
+  <head>
+    <title>Expenses</title>
+    <link rel="shortcut icon" type="image/png" href="images/favicon.png">
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css"/>
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/font-awesome/3.0.2/css/font-awesome.css"/>
+    <link rel="stylesheet" href="css/layout-default-latest.css" type="text/javascript"/>
+    <link rel="stylesheet" media="screen" href="css/main.css">
+
+    <script src="js/lib/jquery-1.10.2.js" type="text/javascript"></script>
+    <script src="js/lib/jquery-ui.js" type="text/javascript"></script>
+    <script src="js/lib/jquery.layout-latest.js" type="text/javascript"></script>
+    <script src="js/lib/underscore.js" type="text/javascript"></script>
+    <script src="http://code.highcharts.com/highcharts.js"></script>
+    <script src="http://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js" type="text/javascript"></script>
+    <script src="js/lib/ui-bootstrap-0.4.0.min.js" type="text/javascript"></script>
+    <script src="js/app.js" type="text/javascript"></script>
+    <script src="js/rest-services.js" type="text/javascript"></script>
+    <script src="js/controllers.js" type="text/javascript"></script>
+    <script src="js/directives.js" type="text/javascript"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var layout = $('body').layout({ applyDefaultStyles: true });
+            layout.sizePane('south', 200);
+            layout.close('east');
+        });
+    </script>
+  </head>
+  <body ng-controller="ExpensesController" class="expenses">
+    <div class="ui-layout-center">
+      <ng-view/>
+    </div>
+    <div class="ui-layout-south">
+      <p id="splits-intro">{{splits.msg}}</p>
+      <div id="exp-splits" class="exp-splits">
+        <table>
+          <tr>
+            <th align="center">Date</th>
+            <th align='left' width="37%">Description</th>
+            <th align='left' width="37%">Memo</th>
+            <th width="8%">Value</th>
+          </tr>
+          <tr ng-repeat="split in splits">
+            <td align="center">{{ split.date | date:'yyyy-MM-dd' }}</td>
+            <td>{{ split.description }}</td>
+            <td>{{ split.memo }}</td>
+            <td align='right'>{{ fmtMoney(split.value_num) | currency }}</td>
+          </tr>
+        </table>
+      </div>
+  </div>
+  <div modal='showHelp' close='closeHelp()' options='helpOpts'>
+    <div class="modal-header">
+      <h3>Help</h3>
+    </div>
+    <div class="modal-body">
+      <p>Almost everything is clickable.  Clicking on them either loads the
+      transactions or charts.</p>
+      <p>You can control the range using URL query parameters.  Examples:<p>
+      <dl>
+        <dt>A 2010 breakdown
+          <dd>http://{host}:{port}/expenses?start=2010-01&amp;end=2010-12</dd>
+        </dt>
+        <dt>The last 9 months of the current year
+          <dd>http://{host}:{port}/expenses?months=9</dd>
+        </dt>
+      </dl>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-warning cancel" ng-click="closeHelp()">Cancel</button>
+    </div>
+  </div>
+  </body>
+</html>
+
+
