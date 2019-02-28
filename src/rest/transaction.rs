@@ -123,7 +123,6 @@ fn since_until(
 }
 
 fn months_between(since: &NaiveDate, until: &NaiveDate) -> u32 {
-    println!("{:?}", (since, until));
 
     let mut curr_year = until.year();
     let mut curr_month = until.month();
@@ -139,7 +138,6 @@ fn months_between(since: &NaiveDate, until: &NaiveDate) -> u32 {
         ctr += 1;
     }
 
-    println!("{}", ctr);
     ctr
 }
 
@@ -170,7 +168,7 @@ fn fill_empty_months(
     (0..cloned_expenses.len()).for_each(|i| {
 
         let mut exp = &mut cloned_expenses[i];
-        (0..num_months).for_each(|_j| {
+        (0..num_months+1).for_each(|_j| {
             let j = _j as usize;
             let month_str = format_nd(desired_months[j]);
             let exp_month = exp.monthlyTotals.get(j).map(|mt| mt.clone());
