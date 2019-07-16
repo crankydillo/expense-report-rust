@@ -156,4 +156,35 @@ angular.module('expensesApp.controllers', ['underscore'])
 .controller('CatchAllController', function($location) {
   console.log($location.path());
   alert($location.path());
+})
+
+.controller('BudgetController', function($scope, $http, $location, $filter, MonthlyExpenses) {
+  $scope.fmtMoney = fmtMoney;
+
+  MonthlyExpenses.budget().then(function(budget) {
+    _.each(budget.amounts, function(a) {
+      a.name = trimmedName(a.name);
+    });
+    budget.amounts = _.sortBy(budget.amounts, function(a) {
+      return a.name;
+    });
+
+    budget.total_budgeted = _.reduce(budget.amounts, function(memo, a) {
+      return memo + a.budgeted;
+    }, 0);
+
+    budget.total_actual =  _.reduce(budget.amounts, function(memo, a) {
+      return memo + a.actual;
+    }, 0);
+
+    $scope.budget = budget;
+  });
 });
+
+function fmtMoney(num) {
+  return (num / 100.0) + "";
+}
+
+function trimmedName(qualifiedName) {
+  return qualifiedName.substring(22, qualifiedName.length);
+}

@@ -67,9 +67,21 @@ angular.module('expensesServices', ['underscore'])
     });
   };
 
+  var budget = function(scope, processingFn) {
+    // TODO Read about null/undefined checks
+    var url = '/res/budget';
+    return $http.get(url).then(function(data) {
+        if (processingFn) {
+            return processingFn(data.data);
+        }
+        return data.data;
+    });
+  };
+
   return {
     monthlyBreakdown: monthlyBreakdown,
     expenseBreakdown: expenseBreakdown,
-    splits: splits
+    splits: splits,
+    budget: budget
   };
 })

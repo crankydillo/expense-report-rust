@@ -14,12 +14,13 @@ pub struct Transaction {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 #[derive(Serialize)]
 pub struct Split {
     pub account_guid: String,
     pub transaction_guid: String,
     pub value_num: i64,
-    pub memo: String
+    pub memo: String,
 }
 
 pub struct TransactionDao<'a> {

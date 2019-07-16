@@ -1,4 +1,4 @@
-#![feature(plugin)]
+/*#![feature(plugin)]
 #![plugin(rocket_codegen)]
 
 use chrono::NaiveDate;
@@ -16,3 +16,4 @@ pub fn list(conn: PgConn) -> Json<Vec<String>> {
     let accountNames = recs.into_iter().map( |a| a.name ).collect::<Vec<String>>();
     Json(accountNames)
 }
+*/

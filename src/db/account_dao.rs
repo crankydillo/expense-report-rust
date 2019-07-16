@@ -2,6 +2,7 @@ use postgres::Connection;
 use std::collections::HashMap;
 
 #[derive(Debug)]
+#[derive(Clone)]
 #[derive(Serialize)]
 pub struct Account {
     pub guid: String,

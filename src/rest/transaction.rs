@@ -1,6 +1,3 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
-
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Range;
@@ -10,26 +7,83 @@ use db::account_dao::AccountDao;
 use db::transaction_dao::{Transaction, TransactionDao, Split};
 use db::account_dao::Account;
 use itertools::Itertools;
-use pg_conn::PgConn;
-use rocket_contrib::json::Json;
-use serde_json;
+use db::pg_conn::PgConn;
 
 fn parse_nd(s: &str) -> NaiveDate {
     let with_day = |s: &str| format!("{}-01", s);
     NaiveDate::parse_from_str(&with_day(&s.replace(" ", "")), "%Y-%m-%d").unwrap()
 }
 
-#[get("/trans?<since>&<until>&<months>")]
+pub fn expense_splits(
+    conn: PgConn,
+    expense_name: String,
+    month: String
+) -> Vec<TranSplit> {
+    let since_nd = parse_nd(&month);
+    let until_nd = NaiveDate::from_ymd(since_nd.year(), since_nd.month()+1, 1);
+    let tran_dao = TransactionDao { conn: &conn };
+    let trans = tran_dao.list(&since_nd, &until_nd);
+    let account_dao = AccountDao { conn: &conn };
+    let account = account_dao.list().into_iter().find(|acct| {
+        acct.qualified_name() == expense_name
+    }).unwrap();  // :(:(
+    let mut splits = Vec::new();
+
+    for t in trans {
+        for s in t.splits {
+            if (s.account_guid == account.guid) {
+                splits.push(
+                    TranSplit {
+                        account_guid: s.account_guid,
+                        transaction_guid: s.transaction_guid,
+                        value_num: s.value_num,
+                        memo: s.memo,
+                        date: t.post_date,
+                        description: t.description.clone(),
+                    });
+            }
+        }
+    }
+    /*
+    // Can't figure out borrowing and flat_map:(:(
+        trans.into_iter().flat_map(|t| {
+            t.splits.into_iter()
+                .filter(|s| s.account_guid == account.guid)
+                .map(|s| TranSplit {
+                    account_guid: s.account_guid,
+                    transaction_guid: s.transaction_guid,
+                    value_num: s.value_num,
+                    memo: s.memo,
+                    date: t.post_date,
+                    description: t.description,
+                })//.collect::<Vec<_>>().into_iter()
+
+        });
+        */
+
+    splits
+}
+
+#[derive(Debug)]
+#[derive(Serialize)]
+pub struct TranSplit {
+    pub account_guid: String,
+    pub transaction_guid: String,
+    pub value_num: i64,
+    pub memo: String,
+    pub date: NaiveDateTime,
+    pub description: String
+}
+
 pub fn list(
     conn: PgConn,
     since: Option<String>,
     until: Option<String>,
     months: Option<String>
-) -> Json<Vec<Transaction>> {
-    let dao = TransactionDao { conn: &conn };
+) -> Vec<Transaction> {
     let (since_nd, until_nd) = since_until(since, until, months);
-    let recs = dao.list(&since_nd, &until_nd);
-    Json(recs)
+    let dao = TransactionDao { conn: &conn };
+    dao.list(&since_nd, &until_nd)
 }
 
 #[derive(Debug)]
@@ -37,7 +91,7 @@ pub fn list(
 pub struct MonthlyTotals {
     summaries: Vec<MonthTotal>,
     totalSpent: i64,
-    acctSums: Vec<MonthlyExpenseGroup>
+    pub acctSums: Vec<MonthlyExpenseGroup>
 }
 
 #[derive(Debug)]
@@ -54,13 +108,12 @@ pub struct MonthlyTotal {
     total: i64
 }
 
-#[get("/monthly-totals?<since>&<until>&<months>")]
 pub fn monthly_totals<'a>(
-    conn: PgConn,
+    conn: &PgConn,
     since: Option<String>,
     until: Option<String>,
     months: Option<String>
-) -> Json<MonthlyTotals> {
+) -> MonthlyTotals {
     let trans_dao = TransactionDao { conn: &conn };
     let account_dao = AccountDao { conn: &conn };
     let (since_nd, until_nd) = since_until(since, until, months);
@@ -71,7 +124,7 @@ pub fn monthly_totals<'a>(
 
     let mut months = fill_empty_months(&since_nd, &until_nd, &unfilled_months);
 
-    months.sort_by(|a, b| a.total.cmp(&b.total));
+    months.sort_by(|a, b| b.total.cmp(&a.total));
 
     let all_months = months.iter().flat_map(|m| &m.monthlyTotals);
 
@@ -88,13 +141,13 @@ pub fn monthly_totals<'a>(
 
     let total_spent = summed.iter().map(|m| m.total).sum();
 
-    Json(
-        MonthlyTotals {
-            summaries: summed,
-            totalSpent: total_spent,
-            acctSums: months.clone()
-        }
-    )
+    //let mut acct_sums = months.clone();
+
+    MonthlyTotals {
+        summaries: summed,
+        totalSpent: total_spent,
+        acctSums: months.clone()
+    }
 }
 
 fn since_until(
@@ -184,7 +237,7 @@ fn fill_empty_months(
     cloned_expenses
 }
 
-struct MonthlyExpense {
+pub struct MonthlyExpense {
     name: String,
     date: NaiveDate,
     amount: i64,
@@ -209,9 +262,9 @@ struct MonthTotal {
 #[derive(Clone)]
 #[derive(Debug)]
 #[derive(Serialize)]
-struct MonthlyExpenseGroup {
-    name: String,
-    total: i64,
+pub struct MonthlyExpenseGroup {
+    pub name: String,
+    pub total: i64,
     monthlyTotals: Vec<MonthTotal>,
 }
 
@@ -277,7 +330,7 @@ fn format_nd(d: NaiveDate) -> String {
     format!("{}-{:02}", year, month)
 }
 
-fn group_by<T, K : Eq + Hash>(items: Vec<T>, to_key: fn(&T) -> K) -> HashMap<K, Vec<T>> {
+pub fn group_by<T, K : Eq + Hash>(items: Vec<T>, to_key: fn(&T) -> K) -> HashMap<K, Vec<T>> {
     let mut start: HashMap<K, Vec<T>> = HashMap::new();
     items.into_iter().for_each(|item| {
         let key = to_key(&item);
