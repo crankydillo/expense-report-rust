@@ -27,16 +27,37 @@
             <th>Account</th>
             <th align='right'>Budgeted</th>
             <th align='right'>Actual</th>
+            <th align='right'>Diff</th>
           </tr>
-          <tr ng-repeat="ba in budget.amounts">
+          <tr ng-repeat="ba in budget.amounts.budgeted">
             <td>{{ ba.name }}<span ng-show='!ba.in_budget'>*</span></td>
             <td class="money" align='right'>{{ fmtMoney(ba.budgeted) | currency }}</td>
             <td class="money" align='right'>{{ fmtMoney(ba.actual) | currency }}</td>
+            <td class="money" align='right'>{{ fmtMoney(ba.budgeted - ba.actual) | currency }}</td>
+          </tr>
+          <tr ng-repeat="ba in budget.amounts.unbudgeted">
+            <td>{{ ba.name }}<span ng-show='!ba.in_budget'>*</span></td>
+            <td class="money" align='right'>{{ fmtMoney(ba.budgeted) | currency }}</td>
+            <td class="money" align='right'>{{ fmtMoney(ba.actual) | currency }}</td>
+            <td class="money" align='right'>{{ fmtMoney(ba.budgeted - ba.actual) | currency }}</td>
           </tr>
           <tr>
-            <td>Total</td>
-            <td class="money" align='right'>{{ fmtMoney(budget.total_budgeted) | currency }}</td>
-            <td class="money" align='right'>{{ fmtMoney(budget.total_actual) | currency }}</td>
+            <td><b>Total</b></td>
+            <td class="money" align='right'>{{ fmtMoney(budget.totals.budgeted) | currency }}</td>
+            <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.total) | currency }}</td>
+            <td class="money" align='right'>{{ fmtMoney(budget.totals.budgeted - budget.totals.actuals.total) | currency }}</td>
+          </tr>
+          <tr>
+            <td><b>Total Budgeted</b></td>
+            <td class="money" align='right'></td>
+            <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.budgeted) | currency }}</td>
+            <td class="money" align='right'></td>
+          </tr>
+          <tr>
+            <td><b>Total Unbudgeted</b></td>
+            <td class="money" align='right'></td>
+            <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.unbudgeted) | currency }}</td>
+            <td class="money" align='right'></td>
           </tr>
         </table>
       </div>

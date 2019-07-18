@@ -162,6 +162,8 @@ angular.module('expensesApp.controllers', ['underscore'])
   $scope.fmtMoney = fmtMoney;
 
   MonthlyExpenses.budget().then(function(budget) {
+    var amountTypes;
+
     _.each(budget.amounts, function(a) {
       a.name = trimmedName(a.name);
     });
@@ -169,17 +171,38 @@ angular.module('expensesApp.controllers', ['underscore'])
       return a.name;
     });
 
-    budget.total_budgeted = _.reduce(budget.amounts, function(memo, a) {
+    amountTypes = _.partition(budget.amounts, function(a) {
+      return a.in_budget;
+    });
+    
+
+    budget.totals = {};
+    budget.totals.actuals = {};
+
+    budget.totals.budgeted = _.reduce(budget.amounts, function(memo, a) {
       return memo + a.budgeted;
     }, 0);
 
-    budget.total_actual =  _.reduce(budget.amounts, function(memo, a) {
+    budget.totals.actuals.total = _.reduce(budget.amounts, function(memo, a) {
+      return memo + a.actual;
+    }, 0);
+
+    budget.amounts = {};
+    budget.amounts.budgeted   = amountTypes[0];
+    budget.amounts.unbudgeted = amountTypes[1];
+
+    budget.totals.actuals.budgeted = _.reduce(budget.amounts.budgeted, function(memo, a) {
+      return memo + a.actual;
+    }, 0);
+
+    budget.totals.actuals.unbudgeted = _.reduce(budget.amounts.unbudgeted, function(memo, a) {
       return memo + a.actual;
     }, 0);
 
     $scope.budget = budget;
   });
 });
+
 
 function fmtMoney(num) {
   return (num / 100.0) + "";
