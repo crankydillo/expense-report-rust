@@ -36,7 +36,7 @@ impl<'a> TransactionDao<'a> {
     ) -> Vec<Transaction> {
 
         let since_dt = &since.and_hms(0, 0, 0);
-        let until_dt = &until.and_hms(0, 0, 0);
+        let until_dt = &until.and_hms(23, 59, 59);
  
         let query = 
             "select guid, num, post_date, description from transactions \
