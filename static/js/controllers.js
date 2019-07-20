@@ -3,6 +3,10 @@
 angular.module('expensesApp.controllers', ['underscore'])
 .controller('ExpensesController', function($scope, $http, $location, $filter, MonthlyExpenses) {
 
+  $scope.$on('loadsplits', function (event, expense) {
+    $scope.expense = expense;
+  });
+
   $scope.fmtMoney = function(num) {
     return (num / 100.0) + "";
   }
@@ -57,7 +61,7 @@ angular.module('expensesApp.controllers', ['underscore'])
     $('#exp-splits').show();
 
     MonthlyExpenses.splits(name, monthSummary.month, $scope).then(function(splits) {
-      $scope.splits = splits.splits;
+      $scope.expense = splitsToExp(name, splits);
     });
   };
 
@@ -91,12 +95,7 @@ angular.module('expensesApp.controllers', ['underscore'])
     $scope.monthlyBreakdown = mb;
   });
 
-  $scope.pad = function(str, len) {
-    str = str + "";
-    if (str.length >= len)
-      return str;
-    return new Array(len - str.length + 1).join("0") + str;
-  }
+  $scope.pad = pad;
 
   $scope.trimmedName = function(qualifiedName) {
     return qualifiedName.substring(22, qualifiedName.length);
@@ -165,6 +164,7 @@ angular.module('expensesApp.controllers', ['underscore'])
     var amountTypes;
 
     _.each(budget.amounts, function(a) {
+      a.qualified_name = a.name;
       a.name = trimmedName(a.name);
     });
     budget.amounts = _.sortBy(budget.amounts, function(a) {
@@ -201,8 +201,28 @@ angular.module('expensesApp.controllers', ['underscore'])
 
     $scope.budget = budget;
   });
+
+  $scope.loadBudgetSplits = function(acctName) {
+    var now = new Date(),
+        yearMo = (1900 + now.getYear()) + "-" + pad((now.getMonth() + 1) + "", 2);
+    $('#splits-intro').hide();  // TODO Not supposed to do this jQuery stuff in controllers
+    $('#exp-splits').show();
+
+    MonthlyExpenses.splits(acctName, yearMo, $scope).then(function(splits) {
+      $scope.$emit("loadsplits", splitsToExp(acctName, splits));
+    });
+  }
 });
 
+/*
+ * Convert splits from the server into what UI wants.
+ */
+function splitsToExp(qualifiedName, splits) {
+  var exp = {};
+  exp.name = trimmedName(qualifiedName);
+  exp.splits = splits.splits;
+  return exp;
+}
 
 function fmtMoney(num) {
   return (num / 100.0) + "";
@@ -211,3 +231,11 @@ function fmtMoney(num) {
 function trimmedName(qualifiedName) {
   return qualifiedName.substring(22, qualifiedName.length);
 }
+
+function pad(str, len) {
+    str = str + "";
+    if (str.length >= len)
+      return str;
+    return new Array(len - str.length + 1).join("0") + str;
+  }
+

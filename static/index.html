@@ -1,6 +1,7 @@
 <html ng-app="expensesApp">
   <head>
     <title>Expenses</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" type="image/png" href="images/favicon.png">
     <link rel="stylesheet" href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css"/>
     <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/font-awesome/3.0.2/css/font-awesome.css"/>
@@ -23,9 +24,20 @@
     <script type="text/javascript">
         $(document).ready(function () {
             var layout = $('body').layout({ applyDefaultStyles: true });
-            layout.sizePane('south', 200);
+            layout.close('south');
             layout.close('east');
         });
+
+      function openSplits() {
+          var layout = $('body').layout({ applyDefaultStyles: true });
+          layout.sizePane('south', 200);
+          layout.open('south');
+      }
+
+      function closeSplits() {
+        var layout = $('body').layout({ applyDefaultStyles: true });
+        layout.close('south');
+      }
     </script>
   </head>
   <body ng-controller="ExpensesController" class="expenses">
@@ -36,13 +48,13 @@
       <p id="splits-intro">{{splits.msg}}</p>
       <div id="exp-splits" class="exp-splits">
         <table>
-          <tr>
+          <tr onclick="closeSplits()">
             <th align="center">Date</th>
-            <th align='left' width="37%">Description</th>
+            <th align='left' width="37%">{{ expense.name }}</th>
             <th align='left' width="37%">Memo</th>
             <th width="8%">Value</th>
           </tr>
-          <tr ng-repeat="split in splits">
+          <tr ng-repeat="split in expense.splits">
             <td align="center">{{ split.date | date:'yyyy-MM-dd' }}</td>
             <td>{{ split.description }}</td>
             <td>{{ split.memo }}</td>

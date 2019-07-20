@@ -3,6 +3,7 @@
         var layout = $('#huh').layout({ applyDefaultStyles: true });
         layout.close('east');
     });
+    
 </script>
 
 <div id='huh' style='height:100%'>
@@ -10,7 +11,6 @@
     <div class="exp-totals">
       <table>
         <tr>
-          <th>No.</th>
           <th align='left'>Account</th>
           <th ng-repeat="s in monthlyBreakdown.summaries"
             ng-class="{selectedLabel: $index==selectedCol}">
@@ -19,11 +19,10 @@
           <th><a href='#/graph/total'>Total</a></th>
         </tr>
         <tr ng-repeat="acctSum in monthlyBreakdown.acctSums | filter:CatsFilter">
-          <td ng-class="{selectedLine: $index==selectedRow}" align="right">{{ $index + 1 }}</td>
           <td ng-class="{selectedLabel: $index==selectedRow, selectedLine: $index==selectedRow}">
             <a href='#/graph/expenses/{{acctSum.name}}'>{{ trimmedName(acctSum.name) }}</a>
           </td>
-          <td class="money" ng-repeat="mt in acctSum.monthlyTotals"
+          <td onclick="openSplits()" class="money" ng-repeat="mt in acctSum.monthlyTotals"
             ng-class="{selected: $index==selectedCol && $parent.$index==selectedRow, selectedLine: $parent.$index==selectedRow, selectedCol: $index==selectedCol}"
             ng-click="selected($parent.$index, $index); loadSplits(acctSum.name, mt)">
             <span class='clickable' ng-click="selected($parent.$index, $index);
@@ -32,7 +31,6 @@
           <td class='money' ng-class="{selectedLine: $index==selectedRow}">{{ fmtMoney(acctSum.total) | currency }}</td>
         </tr>
         <tr>
-          <td></td>
           <td>Total</td>
           <td ng-class="{selectedLabel: $index==selectedCol}"
             align="right" ng-repeat="s in monthlyBreakdown.summaries">{{

@@ -21,6 +21,7 @@ angular.module('expensesApp',
   $routeProvider
     .when('/', { templateUrl: './partials/expense-table.html' })
     .when('/index.html', { templateUrl: './partials/expense-table.html' })
+    .when('/budget', { templateUrl: './partials/budget.html' })
     .when('/expenses', { templateUrl: './partials/expense-table.html' })
     .when('/graph/expenses/:name', { templateUrl: './partials/bar-graph.html', controller: 'ExpenseGraphController' })
     .when('/graph/:year/:month', { templateUrl: './partials/pie-graph.html', controller: 'MonthGraphController' })

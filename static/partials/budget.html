@@ -1,70 +1,48 @@
-<script type="text/javascript">
-    $(document).ready(function () {
-        var layout = $('#huh').layout({ applyDefaultStyles: true });
-        layout.close('east');
-    });
-</script>
-
-<div id='huh' style='height:100%'>
+<div ng-controller="BudgetController" class="expenses">
   <div class="ui-layout-center">
-    <div>
-      <table id="budget-table">
+    <div id="budget-amounts" class="exp-splits">
+      <table>
         <tr>
-          <td>
-            <table class="exp-totals">
-              <tr>
-                <th>No.</th>
-                <th align='left'>Account</th>
-              </tr>
-              <tr ng-repeat="acctSum in monthlyBreakdown.acctSums | filter:CatsFilter">
-                <td ng-class="{selectedLine: $index==selectedRow}" align="right">{{ $index + 1 }}</td>
-                <td ng-class="{selectedLabel: $index==selectedRow, selectedLine: $index==selectedRow}">
-                  <a href='#/graph/expenses/{{acctSum.name}}'>{{ trimmedName(acctSum.name) }}</a>
-                </td>
-              </tr>
-              <tr>
-                <td></td>
-                <td>Total</td>
-              </tr>
-            </table>
+          <th>Account</th>
+          <th align='right'>Budgeted</th>
+          <th align='right'>Actual</th>
+          <th align='right'>Diff</th>
+        </tr>
+        <tr ng-repeat="ba in budget.amounts.budgeted">
+          <td>{{ ba.name }}<span ng-show='!ba.in_budget'>*</span></td>
+          <td class="money" align='right'>{{ fmtMoney(ba.budgeted) | currency }}</td>
+          <td class='clickable' onclick="openSplits()" class="money" align='right' ng-click="selected($parent.$index, $index); loadBudgetSplits(ba.qualified_name)">
+            {{ fmtMoney(ba.actual) | currency }}
           </td>
-          <td ng-repeat="acctSum in monthlyBreakdown.acctSums | filter:CatsFilter">
-            <table class="exp-totals">
-              <tr>
-                <th>No.</th>
-                <th>Actual</th>
-                <th>Budget</th>
-                <th>Diff</th>
-              </tr>
-              <tr ng-repeat="acctSum in monthlyBreakdown.acctSums | filter:CatsFilter">
-                <td ng-class="{selectedLine: $index==selectedRow}" align="right">{{ $index + 1 }}</td>
-                <td class="money" ng-repeat="mt in acctSum.monthlyTotals"
-                                  ng-class="{selected: $index==selectedCol && $parent.$index==selectedRow, selectedLine: $parent.$index==selectedRow, selectedCol: $index==selectedCol}"
-                                  ng-click="selected($parent.$index, $index); loadSplits(acctSum.name, mt)">
-                  <span class='clickable' ng-click="selected($parent.$index, $index); loadSplits(acctSum.name, mt)">{{ fmtMoney(mt.total) | currency }}</span>
-                </td>
-              </tr>
-              <tr>
-                <td>101</td>
-              </tr>
-            </table>
+          <td class="money" align='right'>{{ fmtMoney(ba.budgeted - ba.actual) | currency }}</td>
+        </tr>
+        <tr ng-repeat="ba in budget.amounts.unbudgeted">
+          <td>{{ ba.name }}<span ng-show='!ba.in_budget'>*</span></td>
+          <td class="money" align='right'>{{ fmtMoney(ba.budgeted) | currency }}</td>
+          <td class='clickable' onclick="openSplits()" class="money" align='right' ng-click="selected($parent.$index, $index); loadBudgetSplits(ba.qualified_name)">
+            {{ fmtMoney(ba.actual) | currency }}
+          </td>
+          <td class="money" align='right'>{{ fmtMoney(ba.budgeted - ba.actual) | currency }}</td>
+        </tr>
+        <tr>
+          <td><b>Total</b></td>
+          <td class="money" align='right'>{{ fmtMoney(budget.totals.budgeted) | currency }}</td>
+          <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.total) | currency }}</td>
+          <td class="money" align='right'>{{ fmtMoney(budget.totals.budgeted - budget.totals.actuals.total) | currency }}</td>
+        </tr>
+        <tr>
+          <td><b>Total Budgeted</b></td>
+          <td class="money" align='right'></td>
+          <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.budgeted) | currency }}</td>
+          <td class="money" align='right'>{{ fmtMoney(budget.totals.budgeted - budget.totals.actuals.budgeted) | currency }}</td>
+        </tr>
+        <tr>
+          <td><b>Total Unbudgeted</b></td>
+          <td class="money" align='right'></td>
+          <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.unbudgeted) | currency }}</td>
+          <td class="money" align='right'></td>
         </tr>
       </table>
     </div>
-  </div>
-
-  <div class="ui-layout-east">
-    <div class='side-links'>
-      <span class='side-link' ng-click='openHelp()'>Help</span>
-      <hr/>
-      <div class='side-link'>Filter:  <input style='width:125px' ng-model='CatsFilter'/></div>
-      <hr/>
-      <div class='side-link'>Filter:  <input style='width:125px'/></div>
-      <hr/>
-      <div class='side-link'>
-        <a target='_self' href='/res/monthly-totals?format=csv&months=3'>CSV</a>
-      </div>
-    </div>
-
   </div>
 </div>
