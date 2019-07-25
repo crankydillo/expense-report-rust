@@ -36,8 +36,8 @@ impl<'a> TransactionDao<'a> {
     ) -> Vec<Transaction> {
 
         let since_dt = &since.and_hms(0, 0, 0);
-        let until_dt = &until.and_hms(23, 59, 59);
- 
+        let until_dt = &until.and_hms(0, 0, 0);
+
         let query = 
             "select guid, num, post_date, description from transactions \
             where post_date >= $1 \
@@ -76,10 +76,11 @@ impl<'a> TransactionDao<'a> {
 
         splits.into_iter().for_each(|s| {
             let trans_id = s.transaction_guid.clone();
-            let tracked_splits = match splits_by_tran.remove(&s.transaction_guid) {
-                Some(mut ss) => { ss.push(s); ss },
+            let mut tracked_splits = match splits_by_tran.remove(&s.transaction_guid) {
+                Some(mut ss) => ss,
                 _        => Vec::new()
             };
+            tracked_splits.push(s);
             splits_by_tran.insert(trans_id, tracked_splits);
         });
 

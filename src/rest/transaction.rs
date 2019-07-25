@@ -156,7 +156,11 @@ fn since_until(
     months_p: Option<String>
 ) -> (NaiveDate, NaiveDate) {
 
-    let until = until_p.map(|s| parse_nd(&s)).unwrap_or(Local::now().naive_local().date());
+    let until = until_p.map(|s| parse_nd(&s)).unwrap_or({
+        let now = Local::now().naive_local().date();
+        // TODO: Verify I can use 31 for all last days..
+        NaiveDate::from_ymd(now.year(), now.month(), 31)
+    });
     let since = since_p.map(|s| parse_nd(&s)).unwrap_or({
         let months_since = months_p.map(|m| m.parse().unwrap()).unwrap_or(6);
         // yes I've (sort of) done the following twice, and it's crappy both times
