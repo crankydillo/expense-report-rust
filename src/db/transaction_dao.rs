@@ -56,21 +56,27 @@ impl<'a> TransactionDao<'a> {
 
         let trans_ids = trans.iter().map(|t| t.guid.clone()).collect::<Vec<_>>();
 
-        let trans_id_query_part = trans_ids.iter().map( |id| {
-            String::from("'") + &id + &String::from("'")
-        }).collect::<Vec<_>>().join(",");
 
-        let split_query = String::from("select tx_guid, account_guid, memo, value_num from splits where tx_guid in (") + 
-            &trans_id_query_part + &String::from(")");
+        let splits: Vec<Split> =
+            if (!trans_ids.is_empty()) {
+                let trans_id_query_part = trans_ids.iter().map( |id| {
+                    String::from("'") + &id + &String::from("'")
+                }).collect::<Vec<_>>().join(",");
 
-        let splits: Vec<Split> = self.conn.query(&split_query, &[]).unwrap().iter().map( |row| {
-            Split {
-                account_guid: row.get("account_guid"),
-                transaction_guid: row.get("tx_guid"),
-                value_num: row.get("value_num"),
-                memo: row.get("memo")
-            }
-        }).collect();
+                let split_query = String::from("select tx_guid, account_guid, memo, value_num from splits where tx_guid in (") + 
+                    &trans_id_query_part + &String::from(")");
+
+                self.conn.query(&split_query, &[]).unwrap().iter().map( |row| {
+                    Split {
+                        account_guid: row.get("account_guid"),
+                        transaction_guid: row.get("tx_guid"),
+                        value_num: row.get("value_num"),
+                        memo: row.get("memo")
+                    }
+                }).collect()
+            } else {
+                Vec::new()  // no constant Vec::empty()?  Does that make sense with no GC?
+            };
 
         let mut splits_by_tran: HashMap<String, Vec<Split>> = HashMap::new();
 
