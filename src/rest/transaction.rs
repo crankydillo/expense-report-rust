@@ -170,7 +170,7 @@ fn since_until(
                 })
             });
 
-    months_p = year_p.map(|y| "12".to_string());
+    months_p = year_p.map(|y| "12".to_string()).or(months_p);
     
     let since = since_p.map(|s| parse_nd(&s)).unwrap_or({
         let months_since = months_p.map(|m| m.parse().unwrap()).unwrap_or(6);
@@ -357,7 +357,7 @@ pub fn group_by<T, K : Eq + Hash>(items: Vec<T>, to_key: fn(&T) -> K) -> HashMap
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use chrono::{Datelike, Local, NaiveDate};
 
     #[test]
     fn since_until_with_year() {
@@ -366,4 +366,15 @@ mod tests {
         assert_eq!(NaiveDate::from_ymd(2017, 1,  1),  since);
         assert_eq!(NaiveDate::from_ymd(2017, 12, 31), until);
     }
+
+    #[test]
+    fn since_until_with_month() {
+        let month_param = Some("1".to_string());
+        let (since, until) = super::since_until(None, None, month_param, None);
+        let now = Local::now().naive_local().date();
+        let tup = |d:NaiveDate| (d.year(), d.month());
+        assert_eq!((tup(now), 0), (tup(since), 0));
+        assert_eq!(tup(now), tup(since)); // todo verify end day:(
+    }
+
 }

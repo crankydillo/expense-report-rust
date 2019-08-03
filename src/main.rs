@@ -72,7 +72,6 @@ mod routes {
     pub mod budget {
         use chrono::Local;
         use db::pg_conn::PgConn;
-        //use db::budget_dao::Budget;
         use db::budget_dao::BudgetDao;
         use rest::transaction;
         use rocket_contrib::json::Json;
