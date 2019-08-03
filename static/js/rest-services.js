@@ -34,7 +34,7 @@ angular.module('expensesServices', ['underscore'])
    */
   var monthlyBreakdown = function(scope, processingFn) {
     // TODO Read about null/undefined checks
-    var url = addParams('/res/monthly-totals', 'months', 'since', 'until', 'q');
+    var url = addParams('/res/monthly-totals', 'months', 'since', 'until', 'year', 'q');
     return $http.get(url).then(function(data) {
         console.log("args: " + arguments.length);
         if (processingFn) {

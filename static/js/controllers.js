@@ -157,7 +157,9 @@ angular.module('expensesApp.controllers', ['underscore'])
   alert($location.path());
 })
 
-.controller('BudgetController', function($scope, $http, $location, $filter, MonthlyExpenses) {
+.controller('BudgetController', function($scope, $http, $window, $location, $filter, MonthlyExpenses) {
+
+  $window.document.title = 'Budget';
   $scope.fmtMoney = fmtMoney;
 
   MonthlyExpenses.budget().then(function(budget) {

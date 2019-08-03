@@ -86,7 +86,15 @@ mod routes {
             let budget_dao = BudgetDao { conn: &conn };
             let now = Local::now().naive_local().date();
             let budget = budget_dao.get("Summer 2019".to_string(), now);
-            let monthly_totals = transaction::monthly_totals(&conn, None, None, Some("1".to_string()));
+            let monthly_totals =
+                transaction::monthly_totals(
+                    &conn,
+                    None,
+                    None,
+                    Some("1".to_string()),
+                    None
+                );
+
             // For small collections, people claim this is faster than a map
             let get_monthly_total = |qualified_account_name: String| {
                 monthly_totals.acctSums.iter().find(|mt| {
@@ -152,24 +160,26 @@ mod routes {
         use rest::transaction;
         use rocket_contrib::json::Json;
 
-        #[get("/monthly-totals?<since>&<until>&<months>")]
+        #[get("/monthly-totals?<since>&<until>&<months>&<year>")]
         pub fn monthly_totals<'a>(
             conn: PgConn,
             since: Option<String>,
             until: Option<String>,
-            months: Option<String>
+            months: Option<String>,
+            year: Option<String>
         ) -> Json<transaction::MonthlyTotals> {
-            Json(transaction::monthly_totals(&conn, since, until, months))
+            Json(transaction::monthly_totals(&conn, since, until, months, year))
         }
 
-        #[get("/trans?<since>&<until>&<months>")]
+        #[get("/trans?<since>&<until>&<months>&<year>")]
         pub fn list(
             conn: PgConn,
             since: Option<String>,
             until: Option<String>,
-            months: Option<String>
+            months: Option<String>,
+            year: Option<String>
         ) -> Json<Vec<Transaction>> {
-            Json(transaction::list(conn, since, until, months))
+            Json(transaction::list(conn, since, until, months, year))
         }
 
         #[get("/expenses/<expense_name>/<month>")]

@@ -79,9 +79,10 @@ pub fn list(
     conn: PgConn,
     since: Option<String>,
     until: Option<String>,
-    months: Option<String>
+    months: Option<String>,
+    year: Option<String>
 ) -> Vec<Transaction> {
-    let (since_nd, until_nd) = since_until(since, until, months);
+    let (since_nd, until_nd) = since_until(since, until, months, year);
     let dao = TransactionDao { conn: &conn };
     dao.list(&since_nd, &until_nd)
 }
@@ -112,11 +113,12 @@ pub fn monthly_totals<'a>(
     conn: &PgConn,
     since: Option<String>,
     until: Option<String>,
-    months: Option<String>
+    months: Option<String>,
+    year: Option<String>
 ) -> MonthlyTotals {
     let trans_dao = TransactionDao { conn: &conn };
     let account_dao = AccountDao { conn: &conn };
-    let (since_nd, until_nd) = since_until(since, until, months);
+    let (since_nd, until_nd) = since_until(since, until, months, year);
     let trans = trans_dao.list(&since_nd, &until_nd);
     let mut accounts = account_dao.list();
 
@@ -150,17 +152,26 @@ pub fn monthly_totals<'a>(
     }
 }
 
+// TODO need to understand the type option for 'function overloading' because
+// the following is not good
 fn since_until(
     since_p: Option<String>,
     until_p: Option<String>,
-    months_p: Option<String>
+    mut months_p: Option<String>, // :(:(
+    year_p: Option<String>
 ) -> (NaiveDate, NaiveDate) {
+    let until = 
+        year_p.as_ref().map(|y| NaiveDate::from_ymd(y.parse::<i32>().unwrap(), 12, 31))
+            .unwrap_or({
+                until_p.map(|s| parse_nd(&s)).unwrap_or({
+                    let now = Local::now().naive_local().date();
+                    // TODO: Verify I can use 31 for all last days..
+                    NaiveDate::from_ymd(now.year(), now.month(), 31)
+                })
+            });
 
-    let until = until_p.map(|s| parse_nd(&s)).unwrap_or({
-        let now = Local::now().naive_local().date();
-        // TODO: Verify I can use 31 for all last days..
-        NaiveDate::from_ymd(now.year(), now.month(), 31)
-    });
+    months_p = year_p.map(|y| "12".to_string());
+    
     let since = since_p.map(|s| parse_nd(&s)).unwrap_or({
         let months_since = months_p.map(|m| m.parse().unwrap()).unwrap_or(6);
         // yes I've (sort of) done the following twice, and it's crappy both times
@@ -342,4 +353,17 @@ pub fn group_by<T, K : Eq + Hash>(items: Vec<T>, to_key: fn(&T) -> K) -> HashMap
         result.push(item);
     });
     start
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::NaiveDate;
+
+    #[test]
+    fn since_until_with_year() {
+        let year_param = Some("2017".to_string());
+        let (since, until) = super::since_until(None, None, None, year_param);
+        assert_eq!(NaiveDate::from_ymd(2017, 1,  1),  since);
+        assert_eq!(NaiveDate::from_ymd(2017, 12, 31), until);
+    }
 }
