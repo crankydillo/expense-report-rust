@@ -7,9 +7,8 @@ angular.module('expensesApp.controllers', ['underscore'])
     $scope.expense = expense;
   });
 
-  $scope.fmtMoney = function(num) {
-    return (num / 100.0) + "";
-  }
+  $scope.fmtPercent = fmtPercent;
+  $scope.fmtMoney = fmtMoney;
 
   $scope.openHelp = function () {
     $scope.showHelp = true;
@@ -224,6 +223,11 @@ function splitsToExp(qualifiedName, splits) {
   exp.name = trimmedName(qualifiedName);
   exp.splits = splits.splits;
   return exp;
+}
+
+function fmtPercent(num, den) {
+  if (den == 0 || num == 0) return "";
+  return Math.round((num / den) * 100) + "%";
 }
 
 function fmtMoney(num) {
