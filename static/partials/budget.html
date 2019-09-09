@@ -39,7 +39,7 @@
           <td class="money" align='right'></td>
           <td class="money" align='right'>{{ fmtMoney(budget.totals.actuals.budgeted) | currency }}</td>
           <td class="money" align='right'>{{ fmtMoney(budget.totals.budgeted - budget.totals.actuals.budgeted) | currency }}</td>
-          <td class="money" align='right'>{{ fmtPercent(budget.totals.actuals.total,budget.totals.budgeted) }}</td>
+          <td class="money" align='right'>{{ fmtPercent(budget.totals.actuals.budgeted,budget.totals.budgeted) }}</td>
         </tr>
         <tr>
           <td><b>Total Unbudgeted</b></td>

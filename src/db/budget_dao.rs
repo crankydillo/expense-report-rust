@@ -2,7 +2,6 @@ use db::account_dao::{
     Account,
     AccountDao
 };
-use rest::transaction::group_by;
 use chrono::{
     Datelike,
     NaiveDate
@@ -35,7 +34,46 @@ pub struct BudgetDao<'a> {
 
 impl<'a> BudgetDao<'a> {
 
+    pub fn get_curr(
+        &self,
+        month: NaiveDate
+    ) -> Option<Budget> {
+        // TODO, fix the crappy duplication and modeling!
+        let sql = "select * from budgets b, recurrences r where b.guid = r.obj_guid";
 
+        let budgets: Vec<Budget> = self.conn.query(sql, &[]).unwrap().iter().map( |row| {
+            Budget {
+                guid: row.get("guid"),
+                name: row.get("name"),
+                num_periods: row.get("num_periods"),
+                start_date: row.get("recurrence_period_start"),
+                amounts: Vec::new()
+            }
+        }).collect();
+
+        let budgets_with_dates = budgets.into_iter().map(|b| {
+            let mut curr_year = b.start_date.year();
+            let mut curr_month = b.start_date.month();
+            let mut dates = vec!(b.start_date);
+            let months = (0..b.num_periods-1).for_each(|i| {
+                if curr_month == 12 {
+                    curr_year += 1;
+                    curr_month = 1;
+                } else {
+                    curr_month += 1;
+                };
+                dates.push(NaiveDate::from_ymd(curr_year, curr_month, 1));
+            });
+
+            (b, dates)
+        });
+
+        budgets_with_dates.into_iter().find(|(_, dates)| {
+            dates.into_iter().find(|d| d.year() == month.year() && d.month() == month.month()).is_some()
+        }).map(|(b, _)| self.get(b.name, month))
+    }
+
+    // TODO Return Optional<Budget>
     pub fn get(
         &self,
         name: String,
@@ -97,7 +135,4 @@ impl<'a> BudgetDao<'a> {
             ..budget
         }
     }
-
 }
-
-

@@ -84,7 +84,8 @@ mod routes {
         ) -> Json<Budget> {
             let budget_dao = BudgetDao { conn: &conn };
             let now = Local::now().naive_local().date();
-            let budget = budget_dao.get("Summer 2019".to_string(), now);
+            // TODO deal with option
+            let budget = budget_dao.get_curr(now).unwrap();
             let monthly_totals =
                 transaction::monthly_totals(
                     &conn,

@@ -166,7 +166,7 @@ fn since_until(
                 until_p.map(|s| parse_nd(&s)).unwrap_or({
                     let now = Local::now().naive_local().date();
                     // TODO: Verify I can use 31 for all last days..
-                    NaiveDate::from_ymd(now.year(), now.month(), 31)
+                    NaiveDate::from_ymd(now.year(), now.month() + 1, 1).pred()
                 })
             });
 
