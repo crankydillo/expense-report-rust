@@ -20,7 +20,11 @@ pub fn expense_splits(
     month: String
 ) -> Vec<TranSplit> {
     let since_nd = parse_nd(&month);
-    let until_nd = NaiveDate::from_ymd(since_nd.year(), since_nd.month()+1, 1);
+    let until_nd = 
+        (
+            if (since_nd.month() == 12) { NaiveDate::from_ymd(since_nd.year() + 1, 1, 1) }
+            else { NaiveDate::from_ymd(since_nd.year(), since_nd.month() + 1, 1) }
+         ).pred();
     let tran_dao = TransactionDao { conn: &conn };
     let trans = tran_dao.list(&since_nd, &until_nd);
     let account_dao = AccountDao { conn: &conn };
@@ -44,22 +48,6 @@ pub fn expense_splits(
             }
         }
     }
-    /*
-    // Can't figure out borrowing and flat_map:(:(
-        trans.into_iter().flat_map(|t| {
-            t.splits.into_iter()
-                .filter(|s| s.account_guid == account.guid)
-                .map(|s| TranSplit {
-                    account_guid: s.account_guid,
-                    transaction_guid: s.transaction_guid,
-                    value_num: s.value_num,
-                    memo: s.memo,
-                    date: t.post_date,
-                    description: t.description,
-                })//.collect::<Vec<_>>().into_iter()
-
-        });
-        */
 
     splits
 }
@@ -165,8 +153,11 @@ fn since_until(
             .unwrap_or({
                 until_p.map(|s| parse_nd(&s)).unwrap_or({
                     let now = Local::now().naive_local().date();
-                    // TODO: Verify I can use 31 for all last days..
-                    NaiveDate::from_ymd(now.year(), now.month() + 1, 1).pred()
+                    if (now.month() == 12) {
+                        NaiveDate::from_ymd(now.year(), 12, 31)
+                    } else {
+                        NaiveDate::from_ymd(now.year(), now.month() + 1, 1).pred()
+                    }
                 })
             });
 
@@ -377,4 +368,11 @@ mod tests {
         assert_eq!(tup(now), tup(since)); // todo verify end day:(
     }
 
+    #[test]
+    fn since_until_december() {
+        let since_param = Some("2017-12".to_string());
+        let (since, until) = super::since_until(since_param, None, None, None);
+        assert_eq!(NaiveDate::from_ymd(2017, 12,  1),  since);
+        assert_eq!(NaiveDate::from_ymd(2019, 12, 31), until);
+    }
 }
