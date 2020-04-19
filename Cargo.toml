@@ -14,12 +14,14 @@ path = "src/main.rs"
 
 [dependencies]
 actix-web = "2.0"
-actix-rt = "1.0"
+actix-files = "0.2"
+actix-rt = "=1.0.0"
 serde = "1.0.41"
 serde_derive = "1.0.41"
 serde_json = "1.0.15"
 itertools = "0.8.0"
 time = "0.1.14"
-chrono = { version = "*", features = ["serde"] }
-diesel = { version = "^1.1.0", features = ["sqlite", "r2d2", "chrono"] }
+chrono = { version = "0.4", features = ["serde"] }
+r2d2_sqlite = "0.14.0"
+rusqlite = { version = "0.21", features = ["chrono"] }
 r2d2 = "0.8"

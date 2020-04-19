@@ -1,9 +1,8 @@
-use postgres::Connection;
 use std::collections::HashMap;
+use ::serde::Serialize;
+use rusqlite::{params, Connection};
 
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Account {
     pub guid: String,
     pub parent: Option<Box<Account>>,
@@ -41,13 +40,15 @@ impl<'a> AccountDao<'a> {
             name: String
         }
 
-        let db_accounts: Vec<DbAccount> = self.conn.query("SELECT * from accounts", &[]).unwrap().iter().map( |row| {
-            DbAccount {
-                guid: row.get("guid"),
-                parent_guid: row.get("parent_guid"),
-                name: row.get("name")
-            }
-        }).collect();
+        let mut stmt = self.conn.prepare("SELECT * from accounts").unwrap();
+
+        let db_accounts = stmt.query_map(params![], |row| {
+            Ok(DbAccount {
+                guid: row.get("guid").unwrap(),
+                parent_guid: row.get("parent_guid").unwrap(),
+                name: row.get("name").unwrap()
+            })
+        }).unwrap().map(|r| r.unwrap()).collect::<Vec<_>>();
 
 
         fn to_acct(db_acct: &DbAccount, by_guid: &HashMap<String, &DbAccount>) -> Account {

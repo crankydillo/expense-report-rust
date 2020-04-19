@@ -1,68 +1,74 @@
 #![allow(warnings)]
 extern crate actix_web;
 
-use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
-use diesel::r2d2::{self, ConnectionManager};
-type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
-use diesel::prelude::*;
+use actix_files as fs;
+use actix_web::{App, HttpServer};
 
 mod db;
+mod rest;
+
 use crate::db::*;
 use crate::db::transaction_dao::*;
 
-#[macro_use]
-extern crate diesel;
-
-pub mod schema;
-pub mod models;
-use models::*;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::Connection;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
 
-    let dbPath = "/home/samuel/Documents/gnucash/sqlite3/finances.gnucash";
-    let manager = ConnectionManager::<SqliteConnection>::new(dbPath);
-    let pool = r2d2::Pool::builder()
+    let args: Vec<_> = std::env::args().collect();
+    if (args.len() != 2) {
+        println!("Usage: expense-report <path_to_sqlite_db>");
+        std::process::exit(1);
+    };
+
+    let db_path = &args[1];
+
+    let manager = SqliteConnectionManager::file(db_path);
+    let pool = Pool::builder()
+        .max_size(10)
         .build(manager)
         .expect("Failed to create pool.");
 
     HttpServer::new(move || {
         App::new()
             .data(pool.clone())
-            .service(index)
+            .service(get)
+            .service(routes::budget::get)
+            .service(routes::transaction::monthly_totals)
+            .service(routes::transaction::list)
+            .service(routes::transaction::expense_splits)
+            .service(routes::account::list)
+            .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
     .bind("127.0.0.1:8088")?
     .run()
     .await
 }
 
-#[get("/{id}/{name}")]
-pub async fn index(
-    pool: web::Data<DbPool>,
-    info: web::Path<(String, String)>
-) -> Result<HttpResponse, Error> {
-    let conn = pool.get().expect("couldn't get db connection from pool");
-
-    let tran_dao = TransactionDao { conn: &conn };
-    let trans = tran_dao.list();
-
-    Ok(HttpResponse::Ok().json(trans))
+#[actix_web::get("/hi")]
+pub async fn get() -> impl actix_web::Responder {
+    "Hello"
 }
-
-/*
+ 
 mod routes {
 
     pub mod budget {
-        use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
+        use actix_web::web::Query;
         use chrono::Local;
         use crate::db::budget_dao::BudgetDao;
-        use rest::transaction;
+        use crate::rest::transaction;
         use std::collections::HashSet;
         use std::iter::FromIterator;
+        use ::serde::Serialize;
 
-        #[get("/budget")]
-        pub fn get(
-            pool: web::Data<DbPool>,
+        #[get("/res/budget")]
+        pub async fn get(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
         ) -> Result<HttpResponse, Error> {
             let conn = pool.get().expect("couldn't get db connection from pool");
             let budget_dao = BudgetDao { conn: &conn };
@@ -114,12 +120,11 @@ mod routes {
                 });
 
 
-            HttpResponse::Ok().json(
+            Ok(HttpResponse::Ok().json(
                 Budget {
                     name: budget.name,
                     amounts: budget_amounts
-                });
-
+                }))
         }
 
         #[derive(Debug)]
@@ -140,46 +145,76 @@ mod routes {
     }
 
     pub mod transaction {
-        use db::pg_conn::PgConn;
-        use db::transaction_dao::Transaction;
-        use rest::transaction::TranSplit;
-        use rest::transaction;
-        use rocket_contrib::json::Json;
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use actix_web::*;
+        use actix_web::web::Query;
+        use chrono::Local;
+        use crate::db::budget_dao::BudgetDao;
+        use crate::rest::transaction::TranSplit;
+        use crate::rest::transaction;
+        use std::iter::FromIterator;
+        use ::serde::*;
 
-        #[get("/monthly-totals?<since>&<until>&<months>&<year>")]
-        pub fn monthly_totals<'a>(
-            pool: web::Data<DbPool>,
+
+        #[derive(Deserialize)]
+        struct MtParams {
             since: Option<String>,
             until: Option<String>,
             months: Option<String>,
-            year: Option<String>
-        ) -> Result<HttpResponse, Error> {
-            HttpResponse::Ok().json(transaction::monthly_totals(&conn, since, until, months, year))
+            year: Option<String>,
         }
 
-        #[get("/trans?<since>&<until>&<months>&<year>")]
-        pub fn list(
-            pool: web::Data<DbPool>,
-            since: Option<String>,
-            until: Option<String>,
-            months: Option<String>,
-            year: Option<String>
+        #[get("/res/monthly-totals")]
+        pub async fn monthly_totals<'a>(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            params: Query<MtParams>,
         ) -> Result<HttpResponse, Error> {
-            HttpResponse::Ok().json(transaction::list(conn, since, until, months, year))
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            Ok(HttpResponse::Ok().json(
+                    transaction::monthly_totals(
+                        &conn,
+                        params.since.clone(),
+                        params.until.clone(),
+                        params.months.clone(),
+                        params.year.clone()
+                    )
+                )
+            )
         }
 
-        #[get("/expenses/<expense_name>/<month>")]
-        pub fn expense_splits<'a>(
-            pool: web::Data<DbPool>,
-            expense_name: String,
-            month: String
+        #[get("/res/trans")]
+        pub async fn list(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            params: Query<MtParams>,
         ) -> Result<HttpResponse, Error> {
-            let splits = transaction::expense_splits(conn, expense_name, month);
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            Ok(HttpResponse::Ok().json(
+                    transaction::list(
+                        &conn,
+                        params.since.clone(),
+                        params.until.clone(),
+                        params.months.clone(),
+                        params.year.clone()
+                    )
+                )
+            )
+        }
+
+        #[get("/res/expenses/{expense_name}/{month}")]
+        pub async fn expense_splits<'a>(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            path: web::Path<(String, String)>
+        ) -> Result<HttpResponse, Error> {
+            let expense_name = path.0.clone();
+            let month = path.1.clone();
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            let splits = transaction::expense_splits(&conn, expense_name, month);
             let exp_splits = ExpenseSplits {
                 msg: "hi!".to_string(),
                 splits: splits
             };
-            HttpResponse::Ok().json(exp_splits)
+            Ok(HttpResponse::Ok().json(exp_splits))
         }
 
         #[derive(Debug)]
@@ -191,21 +226,22 @@ mod routes {
     }
 
     pub mod account {
-        use chrono::NaiveDate;
-        use db::account_dao::AccountDao;
-        use pg_conn::PgConn;
-        use rocket_contrib::json::Json;
-        use serde_json;
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
+        use chrono::*;
+        use crate::db::account_dao::AccountDao;
+        use crate::rest::transaction;
 
-        #[get("/accounts")]
-        pub fn list(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
+        #[get("/res/accounts")]
+        pub async fn list(pool: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse, Error> {
+            let conn = pool.get().expect("couldn't get db connection from pool");
             let dao = AccountDao { conn: &conn };
             let since = NaiveDate::from_ymd(2016, 10, 1).and_hms(0, 0, 0);
             let until = NaiveDate::from_ymd(2017, 10, 1).and_hms(0, 0, 0);
             let recs = dao.list();
             let accountNames = recs.into_iter().map( |a| a.name ).collect::<Vec<String>>();
-            HttpResponse::Ok().json(accountNames)
+            Ok(HttpResponse::Ok().json(accountNames))
         }
     }
 }
-*/

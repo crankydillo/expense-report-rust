@@ -1,36 +1,87 @@
 use chrono::*;
-use diesel::prelude::*;
+use ::serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::FromIterator;
-
-use crate::models::*;
-use crate::schema::transactions::dsl::*;
-use crate::schema::splits::dsl::*;
+use rusqlite::{params, Connection};
 
 pub struct TransactionDao<'a> {
-    pub conn: &'a SqliteConnection
+    pub conn: &'a Connection
+}
+
+#[derive(Debug, Serialize)]
+pub struct Transaction {
+    pub guid: String,
+    pub num: String,
+    pub post_date: NaiveDateTime,
+    pub description: String,
+    pub splits: Vec<Split>
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Split {
+    pub account_guid: String,
+    pub transaction_guid: String,
+    pub value_num: i64,
+    pub memo: String,
 }
 
 impl<'a> TransactionDao<'a> {
 
     pub fn list(
         &self,
-//        since: &NaiveDate,
- //       until: &NaiveDate,
-    ) -> Vec<Transaction2> {
+        since: &NaiveDate,
+        until: &NaiveDate,
+    ) -> Vec<Transaction> {
 
-        let trans = transactions
-            .limit(50)
-            .load::<Transaction>(self.conn)
-            .expect("Error loading transactions");
+        let since_dt = &since.and_hms(0, 0, 0);
+        let until_dt = &until.and_hms(0, 0, 0);
+
+        let mut stmt = self.conn.prepare(
+            "select guid, num, post_date, description from transactions \
+            where post_date >= ?1 \
+            and post_date < ?2 \
+            order by post_date desc"
+        ).unwrap();
+
+        let trans = stmt.query_map(params![&since_dt, &until_dt], |row| {
+            Ok(Transaction {
+                guid: row.get("guid").unwrap(),
+                num: row.get("num").unwrap(),
+                post_date: row.get("post_date").unwrap(),
+                description: row.get("description").unwrap(),
+                splits: Vec::new()
+            })
+        }).unwrap().map(|r| r.unwrap()).collect::<Vec<_>>();
 
         let trans_ids = trans.iter().map(|t| t.guid.clone()).collect::<Vec<_>>();
 
-        let _splits = self.splits(trans_ids);
+        let splits: Vec<Split> =
+            if (!trans_ids.is_empty()) {
+                let trans_id_query_part = trans_ids.iter().map( |id| {
+                    String::from("'") + &id + &String::from("'")
+                }).collect::<Vec<_>>().join(",");
+
+                let split_query_str = String::from("select tx_guid, account_guid, memo, value_num from splits where tx_guid in (") + 
+                    &trans_id_query_part + &String::from(")");
+
+                let mut split_query = self.conn.prepare(&split_query_str).unwrap();
+
+                split_query.query_map(params![], |row|
+                    Ok(Split {
+                        account_guid: row.get("account_guid").unwrap(),
+                        transaction_guid: row.get("tx_guid").unwrap(),
+                        value_num: row.get("value_num").unwrap(),
+                        memo: row.get("memo").unwrap()
+                    })
+                ).unwrap().map(|r| r.unwrap()).collect()
+            } else {
+                Vec::new()  // no constant Vec::empty()?  Does that make sense with no GC?
+            };
+
         let mut splits_by_tran: HashMap<String, Vec<Split>> = HashMap::new();
 
-        _splits.into_iter().for_each(|s| {
+        splits.into_iter().for_each(|s| {
             let trans_id = s.transaction_guid.clone();
             let mut tracked_splits = match splits_by_tran.remove(&s.transaction_guid) {
                 Some(mut ss) => ss,
@@ -41,38 +92,15 @@ impl<'a> TransactionDao<'a> {
         });
 
         trans.into_iter().map(|t| {
-            Transaction2 {
-                guid: t.guid.clone(),
-                num: t.num,
-                post_date: t.post_date,
-                description: t.description,
+            Transaction {
                 splits: splits_by_tran.remove(&t.guid).unwrap_or(Vec::new()),
+                ..t
             }
         }).collect()
     }
 
-    fn splits(
-        &self,
-        tran_ids: Vec<String>,
-    ) -> Vec<Split> {
-        if (!tran_ids.is_empty()) {
-
-            let trans_id_query_part = tran_ids.iter().map( |id| {
-                String::from("'") + &id + &String::from("'")
-            }).collect::<Vec<_>>().join(",");
-
-            let split_query = String::from("select guid, tx_guid as transaction_guid, \
-                                               account_guid, memo, value_num from splits \
-                                               where tx_guid in (") + 
-                              &trans_id_query_part + &String::from(")");
-
-
-            diesel::sql_query(split_query)
-                .load(self.conn)
-                .expect("splits")
-
-        } else {
-            Vec::new()  // no constant Vec::empty()?  Does that make sense with no GC?
-        }
+    // TODO
+    fn date_fmt(&self, d: &str) -> String {
+        "abc".to_string()
     }
 }

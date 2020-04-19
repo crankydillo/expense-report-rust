@@ -1,3 +1,0 @@
-[print_schema]
-filter = { only_tables = ["transactions", "splits"] }
-file = "src/schema.rs"

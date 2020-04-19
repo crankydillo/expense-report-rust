@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Range;
 
+use rusqlite::Connection;
+use ::serde::Serialize;
 use chrono::{Datelike, Duration, Local, NaiveDate, NaiveDateTime};
-use db::account_dao::AccountDao;
-use db::transaction_dao::{Transaction, TransactionDao, Split};
-use db::account_dao::Account;
+use crate::db::account_dao::AccountDao;
+use crate::db::transaction_dao::{Split, Transaction, TransactionDao};
+use crate::db::account_dao::Account;
 use itertools::Itertools;
-use db::pg_conn::PgConn;
 
 fn parse_nd(s: &str) -> NaiveDate {
     let with_day = |s: &str| format!("{}-01", s);
@@ -15,7 +16,7 @@ fn parse_nd(s: &str) -> NaiveDate {
 }
 
 pub fn expense_splits(
-    conn: PgConn,
+    conn: &Connection,
     expense_name: String,
     month: String
 ) -> Vec<TranSplit> {
@@ -64,7 +65,7 @@ pub struct TranSplit {
 }
 
 pub fn list(
-    conn: PgConn,
+    conn: &Connection,
     since: Option<String>,
     until: Option<String>,
     months: Option<String>,
@@ -98,7 +99,7 @@ pub struct MonthlyTotal {
 }
 
 pub fn monthly_totals<'a>(
-    conn: &PgConn,
+    conn: &Connection,
     since: Option<String>,
     until: Option<String>,
     months: Option<String>,
