@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
 
     let manager = SqliteConnectionManager::file(db_path);
     let pool = Pool::builder()
-        .max_size(10)
+        .max_size(5)
         .build(manager)
         .expect("Failed to create pool.");
 
@@ -42,7 +42,8 @@ async fn main() -> std::io::Result<()> {
             .service(routes::account::list)
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
-    .bind("127.0.0.1:8088")?
+    .workers(1)
+    .bind("0.0.0.0:8088")?
     .run()
     .await
 }

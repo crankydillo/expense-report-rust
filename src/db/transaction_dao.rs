@@ -34,8 +34,8 @@ impl<'a> TransactionDao<'a> {
         until: &NaiveDate,
     ) -> Vec<Transaction> {
 
-        let since_dt = &since.and_hms(0, 0, 0);
-        let until_dt = &until.and_hms(0, 0, 0);
+        let since_dt = &since.and_hms(0, 0, 0).format("%Y-%m-%d %H:%M:%S").to_string();
+        let until_dt = &until.and_hms(23, 59, 59).format("%Y-%m-%d %H:%M:%S").to_string();
 
         let mut stmt = self.conn.prepare(
             "select guid, num, post_date, description from transactions \
