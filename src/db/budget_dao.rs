@@ -90,11 +90,12 @@ impl<'a> BudgetDao<'a> {
         let mut stmt = self.conn.prepare(sql).unwrap();
 
         let budgets = stmt.query_map(params![], |row| {
+            let date_str: String = row.get("recurrence_period_start").unwrap();
             Ok(Budget {
                 guid: row.get("guid").unwrap(),
                 name: row.get("name").unwrap(),
                 num_periods: row.get("num_periods").unwrap(),
-                start_date: row.get("recurrence_period_start").unwrap(),
+                start_date: NaiveDate::parse_from_str(&date_str, "%Y%m%d").unwrap(),
                 amounts: Vec::new()
             })
         }).unwrap().map(|r| r.unwrap()).collect::<Vec<_>>();

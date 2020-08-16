@@ -32,6 +32,7 @@ pub fn expense_splits(
     let account = account_dao.list().into_iter().find(|acct| {
         acct.qualified_name() == expense_name
     }).unwrap();  // :(:(
+
     let mut splits = Vec::new();
 
     for t in trans {
