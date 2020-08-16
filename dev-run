@@ -1,2 +1,2 @@
 #!/bin/sh
-watchexec -e rs --restart -- cargo run $1 $2
+cargo watch -x 'run --bin expense-report /home/samuel/Documents/gnucash/sqlite3/finances.gnucash'

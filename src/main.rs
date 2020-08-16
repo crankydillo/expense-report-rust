@@ -1,87 +1,77 @@
-#![feature(plugin)]
 #![allow(warnings)]
-#![feature(proc_macro_hygiene, decl_macro)]
+extern crate actix_web;
 
-extern crate chrono;
-extern crate itertools;
-extern crate serde;
-extern crate serde_json;
-extern crate postgres;
-#[macro_use] extern crate diesel;
-extern crate r2d2_diesel;
-extern crate r2d2_postgres;
-extern crate r2d2;
-#[macro_use] extern crate serde_derive;
-#[macro_use] extern crate rocket;
-extern crate rocket_contrib;
+use actix_files as fs;
+use actix_web::{App, HttpServer};
 
 mod db;
-use db::{
-    account_dao,
-    db_conn,
-    pg_conn,
-    transaction_dao
-};
-
 mod rest;
-use rest::{
-    account,
-    transaction
-};
 
-use postgres::{Connection, TlsMode};
-use pg_conn::PgConn;
-use r2d2_postgres::PostgresConnectionManager;
+use crate::db::*;
+use crate::db::transaction_dao::*;
 
-use rocket_contrib::json::Json;
-use rocket_contrib::serve::StaticFiles;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::Connection;
 
-fn main() -> () {
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
 
     let args: Vec<_> = std::env::args().collect();
-    if (args.len() != 3) {
-        println!("Usage: expense-report <db_user> <db_pass>");
+    if (args.len() != 2) {
+        println!("Usage: expense-report <path_to_sqlite_db>");
         std::process::exit(1);
     };
 
-    let db_user = &args[1];
-    let db_pass = &args[2];
+    let db_path = &args[1];
 
-    let conn_str = String::from("postgres://") + &db_user + &String::from(":") +
-        &db_pass + &String::from("@localhost/gnucash");
+    let manager = SqliteConnectionManager::file(db_path);
+    let pool = Pool::builder()
+        .max_size(5)
+        .build(manager)
+        .expect("Failed to create pool.");
 
-    let manager = PostgresConnectionManager::new(conn_str.clone(), r2d2_postgres::TlsMode::None).unwrap();
-    let pool = r2d2::Pool::new(manager).expect("db pool");
-
-    rocket::ignite()
-        .mount("/res/", routes![
-               routes::account::list,
-               routes::transaction::list,
-               routes::transaction::monthly_totals,
-               routes::transaction::expense_splits,
-               routes::budget::get
-        ])
-        .mount("/", StaticFiles::from("static"))
-        .manage(conn_str)
-        .manage(pool)
-        .launch();
+    HttpServer::new(move || {
+        App::new()
+            .data(pool.clone())
+            .service(get)
+            .service(routes::budget::get)
+            .service(routes::transaction::monthly_totals)
+            .service(routes::transaction::list)
+            .service(routes::transaction::expense_splits)
+            .service(routes::account::list)
+            .service(fs::Files::new("/", "./static").index_file("index.html"))
+    })
+    .workers(1)
+    .bind("0.0.0.0:8088")?
+    .run()
+    .await
 }
 
+#[actix_web::get("/hi")]
+pub async fn get() -> impl actix_web::Responder {
+    "Hello"
+}
+ 
 mod routes {
 
     pub mod budget {
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
+        use actix_web::web::Query;
         use chrono::Local;
-        use db::pg_conn::PgConn;
-        use db::budget_dao::BudgetDao;
-        use rest::transaction;
-        use rocket_contrib::json::Json;
+        use crate::db::budget_dao::BudgetDao;
+        use crate::rest::transaction;
         use std::collections::HashSet;
         use std::iter::FromIterator;
+        use ::serde::Serialize;
 
-        #[get("/budget")]
-        pub fn get(
-            conn: PgConn
-        ) -> Json<Budget> {
+        #[get("/res/budget")]
+        pub async fn get(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+        ) -> Result<HttpResponse, Error> {
+            let conn = pool.get().expect("couldn't get db connection from pool");
             let budget_dao = BudgetDao { conn: &conn };
             let now = Local::now().naive_local().date();
             // TODO deal with option
@@ -130,10 +120,12 @@ mod routes {
                     );
                 });
 
-            Json(Budget {
-                name: budget.name,
-                amounts: budget_amounts
-            })
+
+            Ok(HttpResponse::Ok().json(
+                Budget {
+                    name: budget.name,
+                    amounts: budget_amounts
+                }))
         }
 
         #[derive(Debug)]
@@ -154,46 +146,76 @@ mod routes {
     }
 
     pub mod transaction {
-        use db::pg_conn::PgConn;
-        use db::transaction_dao::Transaction;
-        use rest::transaction::TranSplit;
-        use rest::transaction;
-        use rocket_contrib::json::Json;
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use actix_web::*;
+        use actix_web::web::Query;
+        use chrono::Local;
+        use crate::db::budget_dao::BudgetDao;
+        use crate::rest::transaction::TranSplit;
+        use crate::rest::transaction;
+        use std::iter::FromIterator;
+        use ::serde::*;
 
-        #[get("/monthly-totals?<since>&<until>&<months>&<year>")]
-        pub fn monthly_totals<'a>(
-            conn: PgConn,
+
+        #[derive(Deserialize)]
+        struct MtParams {
             since: Option<String>,
             until: Option<String>,
             months: Option<String>,
-            year: Option<String>
-        ) -> Json<transaction::MonthlyTotals> {
-            Json(transaction::monthly_totals(&conn, since, until, months, year))
+            year: Option<String>,
         }
 
-        #[get("/trans?<since>&<until>&<months>&<year>")]
-        pub fn list(
-            conn: PgConn,
-            since: Option<String>,
-            until: Option<String>,
-            months: Option<String>,
-            year: Option<String>
-        ) -> Json<Vec<Transaction>> {
-            Json(transaction::list(conn, since, until, months, year))
+        #[get("/res/monthly-totals")]
+        pub async fn monthly_totals<'a>(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            params: Query<MtParams>,
+        ) -> Result<HttpResponse, Error> {
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            Ok(HttpResponse::Ok().json(
+                    transaction::monthly_totals(
+                        &conn,
+                        params.since.clone(),
+                        params.until.clone(),
+                        params.months.clone(),
+                        params.year.clone()
+                    )
+                )
+            )
         }
 
-        #[get("/expenses/<expense_name>/<month>")]
-        pub fn expense_splits<'a>(
-            conn: PgConn,
-            expense_name: String,
-            month: String
-        ) -> Json<ExpenseSplits> {
-            let splits = transaction::expense_splits(conn, expense_name, month);
+        #[get("/res/trans")]
+        pub async fn list(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            params: Query<MtParams>,
+        ) -> Result<HttpResponse, Error> {
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            Ok(HttpResponse::Ok().json(
+                    transaction::list(
+                        &conn,
+                        params.since.clone(),
+                        params.until.clone(),
+                        params.months.clone(),
+                        params.year.clone()
+                    )
+                )
+            )
+        }
+
+        #[get("/res/expenses/{expense_name}/{month}")]
+        pub async fn expense_splits<'a>(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            path: web::Path<(String, String)>
+        ) -> Result<HttpResponse, Error> {
+            let expense_name = path.0.clone();
+            let month = path.1.clone();
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            let splits = transaction::expense_splits(&conn, expense_name, month);
             let exp_splits = ExpenseSplits {
                 msg: "hi!".to_string(),
                 splits: splits
             };
-            Json(exp_splits)
+            Ok(HttpResponse::Ok().json(exp_splits))
         }
 
         #[derive(Debug)]
@@ -205,20 +227,22 @@ mod routes {
     }
 
     pub mod account {
-        use chrono::NaiveDate;
-        use db::account_dao::AccountDao;
-        use pg_conn::PgConn;
-        use rocket_contrib::json::Json;
-        use serde_json;
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
+        use chrono::*;
+        use crate::db::account_dao::AccountDao;
+        use crate::rest::transaction;
 
-        #[get("/accounts")]
-        pub fn list(conn: PgConn) -> Json<Vec<String>> {
+        #[get("/res/accounts")]
+        pub async fn list(pool: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse, Error> {
+            let conn = pool.get().expect("couldn't get db connection from pool");
             let dao = AccountDao { conn: &conn };
             let since = NaiveDate::from_ymd(2016, 10, 1).and_hms(0, 0, 0);
             let until = NaiveDate::from_ymd(2017, 10, 1).and_hms(0, 0, 0);
             let recs = dao.list();
             let accountNames = recs.into_iter().map( |a| a.name ).collect::<Vec<String>>();
-            Json(accountNames)
+            Ok(HttpResponse::Ok().json(accountNames))
         }
     }
 }

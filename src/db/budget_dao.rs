@@ -1,16 +1,14 @@
-use db::account_dao::{
+use chrono::*;
+use std::collections::HashMap;
+use ::serde::Serialize;
+use rusqlite::{params, Connection};
+
+use crate::db::account_dao::{
     Account,
     AccountDao
 };
-use chrono::{
-    Datelike,
-    NaiveDate
-};
-use postgres::Connection;
-use std::collections::HashMap;
 
-#[derive(Debug)]
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Budget {
     pub guid: String,
     pub name: String,
@@ -19,8 +17,7 @@ pub struct Budget {
     pub amounts: Vec<BudgetAmount>
 }
 
-#[derive(Debug)]
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct BudgetAmount {
     pub account: Account,
     pub period_num: i32,
@@ -40,16 +37,19 @@ impl<'a> BudgetDao<'a> {
     ) -> Option<Budget> {
         // TODO, fix the crappy duplication and modeling!
         let sql = "select * from budgets b, recurrences r where b.guid = r.obj_guid";
+        let mut stmt = self.conn.prepare(sql).unwrap();
 
-        let budgets: Vec<Budget> = self.conn.query(sql, &[]).unwrap().iter().map( |row| {
-            Budget {
-                guid: row.get("guid"),
-                name: row.get("name"),
-                num_periods: row.get("num_periods"),
-                start_date: row.get("recurrence_period_start"),
+        let budgets = stmt.query_map(params![], |row| {
+            let date_str: String = row.get("recurrence_period_start").unwrap();
+            Ok(Budget {
+                guid: row.get("guid").unwrap(),
+                name: row.get("name").unwrap(),
+                num_periods: row.get("num_periods").unwrap(),
+                start_date: NaiveDate::parse_from_str(&date_str, "%Y%m%d").unwrap(),
                 amounts: Vec::new()
-            }
-        }).collect();
+            })
+        }).unwrap().map(|r| r.unwrap()).collect::<Vec<_>>();
+;
 
         let budgets_with_dates = budgets.into_iter().map(|b| {
             let mut curr_year = b.start_date.year();
@@ -87,16 +87,18 @@ impl<'a> BudgetDao<'a> {
         }
 
         let sql = "select * from budgets b, recurrences r where b.guid = r.obj_guid";
+        let mut stmt = self.conn.prepare(sql).unwrap();
 
-        let budgets: Vec<Budget> = self.conn.query(sql, &[]).unwrap().iter().map( |row| {
-            Budget {
-                guid: row.get("guid"),
-                name: row.get("name"),
-                num_periods: row.get("num_periods"),
-                start_date: row.get("recurrence_period_start"),
+        let budgets = stmt.query_map(params![], |row| {
+            let date_str: String = row.get("recurrence_period_start").unwrap();
+            Ok(Budget {
+                guid: row.get("guid").unwrap(),
+                name: row.get("name").unwrap(),
+                num_periods: row.get("num_periods").unwrap(),
+                start_date: NaiveDate::parse_from_str(&date_str, "%Y%m%d").unwrap(),
                 amounts: Vec::new()
-            }
-        }).collect();
+            })
+        }).unwrap().map(|r| r.unwrap()).collect::<Vec<_>>();
 
         let account_dao = AccountDao { conn: self.conn };
         let accounts = account_dao.list();
@@ -108,26 +110,28 @@ impl<'a> BudgetDao<'a> {
         // Don't know how to map over options and deal with lifetimes so I unwrap:(:(
         let budget = budgets.into_iter().find(|b| b.name == name).unwrap();
 
-        let sql = "select * from budget_amounts where budget_guid = $1";
+        let ba_query = "select * from budget_amounts where budget_guid = ?1";
+        let mut ba_stmt = self.conn.prepare(ba_query).unwrap();
 
-        let mut amounts = self.conn.query(&sql, &[&budget.guid]).unwrap().iter()
-            .map( |row| {
-                let account_guid: String = row.get("account_guid");
-                let period = row.get("period_num");
-                let amount: i64 = row.get("amount_num");
-                let amount_denum: i64 = row.get("amount_denom");
-                let multiplier = 100 / amount_denum;
-                let amount_in_cents = amount * multiplier;
-                BudgetAmount {
-                    account: get_account(&accounts, account_guid).clone(),
-                    period_num: period,
-                    amount: amount_in_cents,
-                    month: NaiveDate::from_ymd(budget.start_date.year(), budget.start_date.month() + (period as u32), 1) 
-                }
-            }).filter(|a| {
-                a.account.is_expense() && a.month.year() == month.year() && a.month.month() == month.month()
-            }).collect::<Vec<_>>();
-            
+        let mut amounts = ba_stmt.query_map(params![&budget.guid], |row| {
+            let account_guid: String = row.get("account_guid").unwrap();
+            let period = row.get("period_num").unwrap();
+            let amount: i64 = row.get("amount_num").unwrap();
+            let amount_denum: i64 = row.get("amount_denom").unwrap();
+            let multiplier = 100 / amount_denum;
+            let amount_in_cents = amount * multiplier;
+            Ok(BudgetAmount {
+                account: get_account(&accounts, account_guid).clone(),
+                period_num: period,
+                amount: amount_in_cents,
+                month: NaiveDate::from_ymd(budget.start_date.year(), budget.start_date.month() + (period as u32), 1) 
+            })
+        }).unwrap()
+        .map(|r| r.unwrap())
+        .filter(|a| {
+            a.account.is_expense() && a.month.year() == month.year() && a.month.month() == month.month()
+        }).collect::<Vec<_>>();
+
         amounts.sort_by(|a, b| a.account.name.cmp(&b.account.name));
 
         Budget {
