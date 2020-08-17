@@ -1,8 +1,23 @@
+<script type="text/javascript">
+$(document).ready(function() {
+  var textbox = document.getElementById("q");
+
+  textbox.addEventListener("keyup", function(event) {
+    // Number 13 is the "Enter" key on the keyboard
+    if (event.keyCode === 13) {
+      event.preventDefault();
+      document.getElementById("submit-query").click();
+    }
+  }); 
+
+});
+</script>
+
 <div ng-controller="SearchController" class="expenses">
   <div class="ui-layout-center">
       <div align="center">
           <h1 align="center">Transaction Search</h1>
-          <input ng-model='q' type="text"/>&nbsp;&nbsp;<input ng-click="search(q)" type='button' name="Submit" value="Submit"/>
+          <input id='q' ng-model='q' type="text"/>&nbsp;&nbsp;<input id="submit-query" ng-click="search(q)" type='button' name="submit-query" value="Submit"/>
       </div>
 
       <p>&nbsp;</p>
