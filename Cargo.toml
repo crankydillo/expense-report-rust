@@ -9,10 +9,11 @@ name = "expense-report"
 path = "src/main.rs"
 
 #[[bin]]
-#name = "test"
-#path = "src/test.rs"
+#name = "search"
+#path = "src/search.rs"
 
 [dependencies]
+tokio = "0.2.6"
 actix-web = "2.0"
 actix-files = "0.2"
 actix-rt = "=1.0.0"
@@ -23,5 +24,5 @@ itertools = "0.8.0"
 time = "0.1.14"
 chrono = { version = "0.4", features = ["serde"] }
 r2d2_sqlite = "0.14.0"
-rusqlite = { version = "0.21", features = ["chrono"] }
+rusqlite = { version = "0.21", features = ["chrono", "vtab"] }
 r2d2 = "0.8"

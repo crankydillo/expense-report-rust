@@ -1,0 +1,2 @@
+#!/bin/bash
+docker run -v $1:/db --net=host -d --restart=unless-stopped expense-report

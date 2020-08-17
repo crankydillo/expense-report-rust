@@ -280,19 +280,19 @@ fn expenses_by_month(
     transactions: &Vec<Transaction>,
     accounts: &Vec<Account>
 ) -> Vec<MonthlyExpenseGroup>   {
-    let mut accountsMap = HashMap::new();
+    let mut accounts_map = HashMap::new();
     for a in accounts {
-        accountsMap.insert(&a.guid, a);
+        accounts_map.insert(&a.guid, a);
     }
 
     // No need to fold/reduce here like we do in the node version.
     // That was probably just a mistake there.
     let mut splits = transactions.iter().flat_map(|tran| {
-        let expenses = tran.splits.iter().filter(|s| accountsMap[&s.account_guid].is_expense()).collect::<Vec<&Split>>();
+        let expenses = tran.splits.iter().filter(|s| accounts_map[&s.account_guid].is_expense()).collect::<Vec<&Split>>();
 
         expenses.iter().map(|e| {
             ExpenseSplit {
-                name: accountsMap[&e.account_guid].qualified_name(),
+                name: accounts_map[&e.account_guid].qualified_name(),
                 date: tran.post_date,
                 amount: e.value_num,
                 memo: e.memo.clone()

@@ -1,8 +1,6 @@
 use chrono::*;
 use ::serde::Serialize;
 use std::collections::HashMap;
-use std::collections::HashSet;
-use std::iter::FromIterator;
 use rusqlite::{params, Connection};
 
 pub struct TransactionDao<'a> {
@@ -28,23 +26,26 @@ pub struct Split {
 
 impl<'a> TransactionDao<'a> {
 
-    pub fn list(
-        &self,
-        since: &NaiveDate,
-        until: &NaiveDate,
-    ) -> Vec<Transaction> {
+    pub fn trans(&self, tran_ids: Vec<String>) -> Vec<Transaction> {
 
-        let since_dt = &since.and_hms(0, 0, 0).format("%Y-%m-%d %H:%M:%S").to_string();
-        let until_dt = &until.and_hms(23, 59, 59).format("%Y-%m-%d %H:%M:%S").to_string();
+        if (tran_ids.is_empty()) {
+            return Vec::new()
+        }
 
-        let mut stmt = self.conn.prepare(
-            "select guid, num, post_date, description from transactions \
-            where post_date >= ?1 \
-            and post_date < ?2 \
-            order by post_date desc"
-        ).unwrap();
+        let id_str =
+            tran_ids
+                .iter()
+                .map(|i| format!("'{}'", i))
+                .collect::<Vec<_>>()
+                .join(",");
 
-        let trans = stmt.query_map(params![&since_dt, &until_dt], |row| {
+        let stmt_str = format!("select guid, num, post_date, description \
+            from transactions where guid in ({}) \
+            order by post_date desc", id_str);
+
+        let mut stmt = self.conn.prepare(&stmt_str).unwrap();
+
+        let trans = stmt.query_map(params![], |row| {
             Ok(Transaction {
                 guid: row.get("guid").unwrap(),
                 num: row.get("num").unwrap(),
@@ -97,6 +98,33 @@ impl<'a> TransactionDao<'a> {
                 ..t
             }
         }).collect()
+
+    }
+
+    pub fn list(
+        &self,
+        since: &NaiveDate,
+        until: &NaiveDate,
+    ) -> Vec<Transaction> {
+
+        let since_dt = &since.and_hms(0, 0, 0).format("%Y-%m-%d %H:%M:%S").to_string();
+        let until_dt = &until.and_hms(23, 59, 59).format("%Y-%m-%d %H:%M:%S").to_string();
+
+        let mut stmt = self.conn.prepare(
+            "select guid from transactions \
+            where post_date >= ?1 \
+            and post_date < ?2 \
+            order by post_date desc"
+        ).unwrap();
+
+        let tran_ids: Vec<String> = 
+            stmt.query_map(params![&since_dt, &until_dt], |row| {
+                let id: String = row.get("guid").unwrap();
+                Ok(id)
+            })
+        .unwrap().map(|r| r.unwrap()).collect();
+
+        self.trans(tran_ids)
     }
 
     // TODO

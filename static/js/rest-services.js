@@ -36,7 +36,6 @@ angular.module('expensesServices', ['underscore'])
     // TODO Read about null/undefined checks
     var url = addParams('/res/monthly-totals', 'months', 'since', 'until', 'year', 'q');
     return $http.get(url).then(function(data) {
-        console.log("args: " + arguments.length);
         if (processingFn) {
             return processingFn(data.data);
         }
@@ -78,10 +77,19 @@ angular.module('expensesServices', ['underscore'])
     });
   };
 
+  var search = function(query) {
+    console.log("q: " + query);
+    var url = '/res/search?q=' + query;
+    return $http.get(url).then(function(data) {
+      return data.data;
+    });
+  }
+
   return {
     monthlyBreakdown: monthlyBreakdown,
     expenseBreakdown: expenseBreakdown,
     splits: splits,
-    budget: budget
+    budget: budget,
+    search: search
   };
 })
