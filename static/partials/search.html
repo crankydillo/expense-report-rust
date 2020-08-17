@@ -1,0 +1,26 @@
+<div ng-controller="SearchController" class="expenses">
+  <div class="ui-layout-center">
+      <div align="center">
+          <h1 align="center">Transaction Search</h1>
+          <input ng-model='q' type="text"/>&nbsp;&nbsp;<input ng-click="search(q)" type='button' name="Submit" value="Submit"/>
+      </div>
+
+      <p>&nbsp;</p>
+
+        <table>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Memo</th>
+            <th>Amount</th>
+          </tr>
+          <tr ng-repeat="result in search_results">
+            <td>{{ result.date }}</td>
+            <td>{{ result.description }}</td>
+            <td>{{ result.memo }}</td>
+            <td>{{ fmtMoney(result.amount) | currency }}</td>
+          </tr>
+        </table>
+
+  </div>
+</div>

@@ -213,7 +213,20 @@ angular.module('expensesApp.controllers', ['underscore'])
       $scope.$emit("loadsplits", splitsToExp(acctName, splits));
     });
   }
+})
+.controller('SearchController', function($scope, $http, $window, $location, $filter, MonthlyExpenses) {
+
+  console.log('search called');
+  $window.document.title = 'Search';
+  $scope.fmtMoney = fmtMoney;
+
+  $scope.search = function(query) {
+    MonthlyExpenses.search(query).then(function(results) {
+      $scope.search_results = results;
+    });
+  };
 });
+
 
 /*
  * Convert splits from the server into what UI wants.

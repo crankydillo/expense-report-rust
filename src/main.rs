@@ -16,7 +16,6 @@ use rusqlite::Connection;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-
     let args: Vec<_> = std::env::args().collect();
     if (args.len() != 2) {
         println!("Usage: expense-report <path_to_sqlite_db>");
@@ -31,6 +30,8 @@ async fn main() -> std::io::Result<()> {
         .build(manager)
         .expect("Failed to create pool.");
 
+    tokio::spawn(search::index_transactions(pool.clone()));
+
     HttpServer::new(move || {
         App::new()
             .data(pool.clone())
@@ -40,6 +41,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::transaction::list)
             .service(routes::transaction::expense_splits)
             .service(routes::account::list)
+            .service(routes::search::search)
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
     .workers(1)
@@ -54,6 +56,76 @@ pub async fn get() -> impl actix_web::Responder {
 }
  
 mod routes {
+
+    pub mod search {
+        use chrono::NaiveDate;
+        use actix_web::{get, web, App, Error, HttpResponse, HttpServer};
+        use actix_web::web::Query;
+        use ::serde::{Deserialize, Serialize};
+        use r2d2::Pool;
+        use r2d2_sqlite::SqliteConnectionManager;
+        use crate::db::account_dao::AccountDao;
+        use crate::db::transaction_dao::TransactionDao;
+        use crate::db::search_dao::SearchDao;
+        use std::collections::HashMap;
+
+        #[derive(Debug)]
+        #[derive(Serialize)]
+        pub struct SearchTran {
+            pub date: NaiveDate,
+            pub description: String,
+            pub memo: String,
+            pub amount: i64
+        }
+
+        #[derive(Deserialize)]
+        struct SearchParams {
+            q: String
+        }
+
+        #[get("/res/search")]
+        pub async fn search(
+            pool: web::Data<Pool<SqliteConnectionManager>>,
+            params: Query<SearchParams>
+        ) -> Result<HttpResponse, Error> {
+            let conn = pool.get().expect("couldn't get db connection from pool");
+            let accounts = AccountDao { conn: &conn }.list();
+            let mut accounts_map = HashMap::new();
+
+            for a in &accounts {
+                accounts_map.insert(&a.guid, a);
+            }
+
+            let tran_dao = TransactionDao { conn: &conn };
+
+            let search_dao = SearchDao {
+                conn: &conn,
+                transaction_dao: &tran_dao
+            };
+            let results =
+                search_dao.search(&params.q).into_iter().map(|t| {
+
+                    let amount: i64 =
+                        t.splits.iter()
+                        .filter(|s| accounts_map[&s.account_guid].is_expense())
+                        .map(|s| s.value_num)
+                        .sum();
+
+                    let memo =
+                        t.splits.iter()
+                            .map(|s| &*s.memo)
+                            .collect::<Vec<&str>>().join(" ");
+
+                    SearchTran {
+                        date: t.post_date.date(),
+                        description: t.description,
+                        memo: memo,
+                        amount: amount
+                    }
+                }).collect::<Vec<_>>();
+            Ok(HttpResponse::Ok().json(results))
+        }
+    }
 
     pub mod budget {
         use r2d2::Pool;
@@ -238,11 +310,79 @@ mod routes {
         pub async fn list(pool: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse, Error> {
             let conn = pool.get().expect("couldn't get db connection from pool");
             let dao = AccountDao { conn: &conn };
-            let since = NaiveDate::from_ymd(2016, 10, 1).and_hms(0, 0, 0);
-            let until = NaiveDate::from_ymd(2017, 10, 1).and_hms(0, 0, 0);
             let recs = dao.list();
             let accountNames = recs.into_iter().map( |a| a.name ).collect::<Vec<String>>();
             Ok(HttpResponse::Ok().json(accountNames))
+        }
+    }
+}
+
+mod search {
+    use std::time::{Duration, Instant};
+    use tokio::time;
+
+    use std::collections::HashMap;
+
+    use crate::db::*;
+    use crate::db::account_dao::AccountDao;
+    use crate::db::transaction_dao::*;
+    use crate::rest::transaction;
+
+    use r2d2::Pool;
+    use r2d2_sqlite::SqliteConnectionManager;
+    use rusqlite::{params, Connection};
+
+    pub async fn index_transactions(pool: Pool<SqliteConnectionManager>) {
+        let mut interval_day = time::interval(Duration::from_secs(1 * 24 * 60 * 60));
+        interval_day.tick().await; // we don't want to start indexing at app startup!
+        loop {
+            let now = interval_day.tick().await;
+            println!("Indexing started at {:?}", Instant::now());
+            let conn = pool.get().expect("couldn't get db connection from pool");
+
+            let tots = transaction::list(
+                &conn,
+                Some("2001-01".to_string()),
+                Some("2099-01".to_string()),
+                None,
+                None
+            );
+
+            let accounts = AccountDao { conn: &conn }.list();
+            let mut accounts_map = HashMap::new();
+
+            conn.execute("DROP TABLE search", params![]);
+
+            conn.execute(
+                "CREATE VIRTUAL TABLE search USING FTS5(tran_id, text, tokenize = porter)",
+                params![]
+            ).unwrap();
+
+            for a in &accounts {
+                accounts_map.insert(&a.guid, a);
+            }
+
+            let mut insert_search_statement = conn.prepare(
+                "INSERT INTO search VALUES (?, ?)"
+            ).unwrap();
+
+            println!("Indexing {} transactions.", tots.len());
+
+            for (pos, t) in tots.iter().enumerate() {
+                let amount: i64 =
+                    t.splits.iter()
+                    .filter(|s| accounts_map[&s.account_guid].is_expense())
+                    .map(|s| s.value_num)
+                    .sum();
+
+                if (amount != 0) {
+                    let split_text = t.splits.iter().map(|s| &*s.memo).collect::<Vec<&str>>().join(" ");
+                    let text = format!("{} {}", t.description, split_text);
+                    insert_search_statement.execute(&[&t.guid, &text]).unwrap();
+                }
+            }
+
+            println!("Indexing finished at {:?}", Instant::now());
         }
     }
 }
