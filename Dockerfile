@@ -1,5 +1,5 @@
 # Credit to https://alexbrand.dev/post/how-to-package-rust-applications-into-minimal-docker-containers/
-FROM rust:1.42 AS build
+FROM rust:1.64 AS build
 
 WORKDIR /usr/src
 
@@ -27,6 +27,6 @@ FROM debian:buster-slim
 COPY --from=build /usr/local/cargo/bin/expense-report .
 COPY static ./static
 RUN apt-get update && apt-get install -y libsqlite3-0
-USER 1000
+#USER 1000
 ENTRYPOINT ["./expense-report"]
-CMD ["/db"]
+CMD ["/db_dir", "finances.gnucash"]

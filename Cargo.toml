@@ -14,7 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 tokio = "0.2.6"
-actix-web = "2.0"
+actix-web = "2"
 actix-files = "0.2"
 actix-rt = "=1.0.0"
 serde = "1.0.41"

@@ -3,6 +3,7 @@ extern crate actix_web;
 
 use actix_files as fs;
 use actix_web::{App, HttpServer};
+use std::path::Path;
 
 mod db;
 mod rest;
@@ -17,12 +18,21 @@ use rusqlite::Connection;
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     let args: Vec<_> = std::env::args().collect();
-    if (args.len() != 2) {
-        println!("Usage: expense-report <path_to_sqlite_db>");
-        std::process::exit(1);
-    };
 
-    let db_path = &args[1];
+    // TODO make search an optional thing
+    // TODO remove this messiness that works around docker permissions issues.
+    let db_path =
+        if (args.len() == 2) {
+            args[1].clone()
+        } else if (args.len() == 3) {
+            // TODO fix this path mess
+            let path = format!("{}/{}", &args[1], &args[2]);
+            println!("{}", path);
+            path
+        } else {
+            println!("Usage: expense-report <path_to_sqlite_db>");
+            std::process::exit(1);
+        };
 
     let manager = SqliteConnectionManager::file(db_path);
     let pool = Pool::builder()
@@ -318,8 +328,9 @@ mod routes {
 }
 
 mod search {
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
     use tokio::time;
+    use chrono::Local;
 
     use std::collections::HashMap;
 
@@ -335,9 +346,13 @@ mod search {
     pub async fn index_transactions(pool: Pool<SqliteConnectionManager>) {
         let mut interval_day = time::interval(Duration::from_secs(1 * 24 * 60 * 60));
         interval_day.tick().await; // we don't want to start indexing at app startup!
+        let print_now = |prefix: &str| {
+            println!("{} at {}", prefix, Local::now().format("%Y-%m-%dT%H:%M:%S"));
+        };
+
         loop {
             let now = interval_day.tick().await;
-            println!("Indexing started at {:?}", Instant::now());
+            print_now("Indexing started");
             let conn = pool.get().expect("couldn't get db connection from pool");
 
             let tots = transaction::list(
@@ -351,7 +366,7 @@ mod search {
             let accounts = AccountDao { conn: &conn }.list();
             let mut accounts_map = HashMap::new();
 
-            conn.execute("DROP TABLE search", params![]);
+            let _ = conn.execute("DROP TABLE search", params![]);
 
             conn.execute(
                 "CREATE VIRTUAL TABLE search USING FTS5(tran_id, text, tokenize = porter)",
@@ -382,7 +397,7 @@ mod search {
                 }
             }
 
-            println!("Indexing finished at {:?}", Instant::now());
+            print_now("Indexing finished");
         }
     }
 }

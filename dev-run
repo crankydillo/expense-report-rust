@@ -1,2 +1,2 @@
 #!/bin/sh
-cargo watch -x 'run --bin expense-report /home/samuel/Documents/gnucash/sqlite3/finances.gnucash'
+cargo watch -w src -w static -x 'run --bin expense-report finances.gnucash'

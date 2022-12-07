@@ -30,7 +30,7 @@ fn main() -> () {
 
     (0..100).for_each(|i| {
         let conn = db::pg_conn::PgConn(pool.get().unwrap());
-        let tots = transaction::monthly_totals(
+        let tots = transaction::list(
             &conn,
             None,
             None,

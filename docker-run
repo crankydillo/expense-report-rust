@@ -1,2 +1,2 @@
 #!/bin/bash
-docker run -v $1:/db -p 8000:8088 -d --restart=unless-stopped expense-report
+docker run --user $(id -u):$(id -g) -v $(pwd)/tmp:/myt -v $1:/db_dir -p 8000:8088 -d --restart=unless-stopped expense-report
